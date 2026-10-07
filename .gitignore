@@ -1,0 +1,10 @@
+node_modules
+.nuxt
+.output
+.data
+.env
+.env.*
+dist
+# Исходники тяжёлые и личные: в репозиторий идёт только их опись.
+sources/**
+!sources/README.md
