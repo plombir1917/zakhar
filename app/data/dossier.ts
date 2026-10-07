@@ -11,23 +11,34 @@ export const VK = 'https://vk.com/plombir1917'
 
 export type SectionId = 'anketa' | 'scena' | 'kod' | 'iventy' | 'muzyka' | 'lichnoe' | 'svyaz'
 
+export type SketchKind = 'ruler' | 'stage' | 'laptop' | 'plan' | 'mic' | 'sport' | 'phone'
+
 export interface Section {
   id: SectionId
   /** Надпись на закладке — простым словом, без шифров */
   tab: string
-  /** Строка в описи на внутренней стороне обложки */
+  /** Строка в описи на левой странице */
   inventory: string
   color: string
+  /**
+   * Фото на левой странице разворота — меняется вместе с разделом. Пока
+   * снимков нет, на его месте карандашный набросок (sketch). Положить фото в
+   * public/photos/ и вписать путь сюда — набросок уйдёт сам.
+   */
+  photo?: string
+  sketch: SketchKind
+  /** Подпись под фото, ручкой */
+  caption: string
 }
 
 export const SECTIONS: Section[] = [
-  { id: 'anketa', tab: 'Анкета', inventory: 'Анкета: кто такой', color: 'var(--tab-yellow)' },
-  { id: 'scena', tab: 'Сцена', inventory: 'Сцена: веду события', color: 'var(--tab-pink)' },
-  { id: 'kod', tab: 'Код', inventory: 'Код: работа и проекты', color: 'var(--tab-blue)' },
-  { id: 'iventy', tab: 'Ивенты', inventory: 'Ивенты: организую', color: 'var(--tab-green)' },
-  { id: 'muzyka', tab: 'Музыка', inventory: 'Музыка: рэп и сведение', color: 'var(--tab-violet)' },
-  { id: 'lichnoe', tab: 'Личное', inventory: 'Личное: спорт и жизнь', color: 'var(--tab-orange)' },
-  { id: 'svyaz', tab: 'Связь', inventory: 'Связь: как найти', color: 'var(--tab-red)' },
+  { id: 'anketa', tab: 'Анкета', inventory: 'Анкета: кто такой', color: 'var(--tab-yellow)', sketch: 'ruler', caption: 'рост сверен, 200 см' },
+  { id: 'scena', tab: 'Сцена', inventory: 'Сцена: веду события', color: 'var(--tab-pink)', sketch: 'stage', caption: 'с микрофоном — обычный вечер' },
+  { id: 'kod', tab: 'Код', inventory: 'Код: работа и проекты', color: 'var(--tab-blue)', sketch: 'laptop', caption: 'днём — за кодом' },
+  { id: 'iventy', tab: 'Ивенты', inventory: 'Ивенты: организую', color: 'var(--tab-green)', sketch: 'plan', caption: 'за кулисами, с планом' },
+  { id: 'muzyka', tab: 'Музыка', inventory: 'Музыка: рэп и сведение', color: 'var(--tab-violet)', sketch: 'mic', caption: '!захар у микрофона' },
+  { id: 'lichnoe', tab: 'Личное', inventory: 'Личное: спорт и жизнь', color: 'var(--tab-orange)', sketch: 'sport', caption: 'для себя, не для медалей' },
+  { id: 'svyaz', tab: 'Связь', inventory: 'Связь: как найти', color: 'var(--tab-red)', sketch: 'phone', caption: 'пиши — отвечу' },
 ]
 
 export interface Field {

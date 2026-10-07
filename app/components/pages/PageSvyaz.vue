@@ -19,7 +19,7 @@ function tear(i: number) {
 <template>
   <div class="svyaz">
     <header class="page-head">
-      <h1 class="page-title">Связь</h1>
+      <Typewriter tag="h1" class="page-title" text="Связь" :armed="fresh" :start="fresh" :pace="70" />
       <PenNote :tilt="-3">один способ, зато быстрый</PenNote>
     </header>
 

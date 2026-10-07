@@ -14,7 +14,7 @@ const snaps = [
 <template>
   <div class="lichnoe">
     <header class="page-head">
-      <h1 class="page-title">Личное</h1>
+      <Typewriter tag="h1" class="page-title" text="Личное" :armed="fresh" :start="fresh" :pace="70" />
       <PenNote :tilt="-3">то, что не секретно</PenNote>
     </header>
 

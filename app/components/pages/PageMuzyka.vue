@@ -11,7 +11,7 @@ defineProps<{ fresh: boolean }>()
 <template>
   <div class="muzyka">
     <header class="page-head">
-      <h1 class="page-title">Музыка</h1>
+      <Typewriter tag="h1" class="page-title" text="Музыка" :armed="fresh" :start="fresh" :pace="70" />
       <PenNote :tilt="-3">грешу, признаю</PenNote>
     </header>
 

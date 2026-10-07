@@ -66,7 +66,7 @@ const frames = [
     @pointerdown="aim"
   >
     <header class="page-head">
-      <h1 class="page-title">Сцена</h1>
+      <Typewriter tag="h1" class="page-title" text="Сцена" :armed="fresh" :start="fresh" :pace="70" />
       <PenNote color="ink" :tilt="-3" class="chalk">моя любимая часть дела</PenNote>
     </header>
 

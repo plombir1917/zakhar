@@ -19,14 +19,15 @@
   --pen: #2b45c6;
   --marker: #f5d547;
 
-  /* Закладки-разделители: у каждого раздела свой пластик */
-  --tab-pink: #f28db2;
-  --tab-green: #7fbf6a;
-  --tab-yellow: #f5d547;
-  --tab-blue: #8ec5ff;
-  --tab-violet: #b9a3f0;
-  --tab-orange: #f3a25c;
-  --tab-red: #ef6a5b;
+  /* Закладки-разделители: у каждого раздела свой пластик. Цвета приглушены —
+     канцелярский пластик под лампой, а не мультяшные наклейки */
+  --tab-pink: #e3a3ba;
+  --tab-green: #93b983;
+  --tab-yellow: #e6cc62;
+  --tab-blue: #9fc2e3;
+  --tab-violet: #b4a6d8;
+  --tab-orange: #dfa576;
+  --tab-red: #d57a6e;
 
   --hand: 'Shantell Sans Variable', 'Comic Sans MS', cursive;
   --type: 'PT Mono', 'Courier New', monospace;
@@ -83,6 +84,8 @@ button {
     'BNCE' 60,
     'SPAC' 0;
   letter-spacing: 0.005em;
+  /* шариковая паста чуть расплывается по волокнам */
+  text-shadow: 0 0 0.5px currentColor;
 }
 
 .type {

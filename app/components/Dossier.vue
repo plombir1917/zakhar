@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SECTIONS, type SectionId } from '~/data/dossier'
+import { SECTIONS, type Section, type SectionId } from '~/data/dossier'
 import PageAnketa from '~/components/pages/PageAnketa.vue'
 import PageScena from '~/components/pages/PageScena.vue'
 import PageKod from '~/components/pages/PageKod.vue'
@@ -14,6 +14,12 @@ import PageSvyaz from '~/components/pages/PageSvyaz.vue'
  * Открытие — единственное поставленное движение на сайте: обложка
  * переворачивается на корешке, и её изнанка становится левой страницей
  * разворота. Всё остальное движется только в ответ на действия человека.
+ *
+ * Листание — настоящий лист: он поднимается с правой страницы, переворачивается
+ * на корешке и ложится влево, а на его обороте уже фото нового раздела. Пока
+ * лист в воздухе, под ним справа лежит новая страница, слева — прежняя; назад
+ * — наоборот. Поэтому состояний три: выбранная закладка (current), что видно
+ * справа (rightId) и что видно слева (leftId).
  *
  * Раздел живёт в адресе (#scena), чтобы ссылку на «Сцену» можно было
  * отправить другу; открытая по такой ссылке папка пропускает анимацию —
@@ -33,8 +39,13 @@ const state = ref<'closed' | 'open'>('closed')
 const instant = ref(false)
 const revealed = ref(false)
 const current = ref<SectionId>('anketa')
-const direction = ref<'forward' | 'back'>('forward')
+const rightId = ref<SectionId>('anketa')
+const leftId = ref<SectionId>('anketa')
+const flip = ref<null | { dir: 'forward' | 'back'; front: SectionId; back: SectionId }>(null)
 const visited = reactive(new Set<SectionId>())
+const sounds = useDeskSounds()
+const FLIP_MS = 1050
+let flipTimer = 0
 const snuff = ref(false)
 // Вступление (3D-сцена) накрывает стол, пока не доиграет; потом снимается
 const introOn = ref(true)
@@ -45,31 +56,56 @@ function afterIntro() {
 }
 
 const index = (id: SectionId) => SECTIONS.findIndex((s) => s.id === id)
-const section = computed(() => SECTIONS[index(current.value)]!)
+const sec = (id: SectionId): Section => SECTIONS[index(id)]!
 
 function open(opts: { instant?: boolean } = {}) {
   if (state.value === 'open') return
   instant.value = !!opts.instant
+  sounds.unlock()
   state.value = 'open'
   // Содержимое проявляется, когда обложка почти легла: печатать анкету под
   // летящим картоном — значит показать её никому.
   setTimeout(() => (revealed.value = true), opts.instant ? 0 : 950)
 }
 
-function go(id: SectionId) {
-  if (id === current.value) return
-  direction.value = index(id) > index(current.value) ? 'forward' : 'back'
-  visited.add(current.value)
-  current.value = id
-  if (import.meta.client) history.replaceState(null, '', '#' + id)
+// Лист ещё в воздухе, а уже нажали следующую закладку — кладём его сразу
+function settle() {
+  clearTimeout(flipTimer)
+  rightId.value = current.value
+  leftId.value = current.value
+  flip.value = null
 }
 
-const fresh = computed(() => !visited.has(current.value))
+function go(id: SectionId) {
+  if (id === current.value) return
+  settle()
+  const from = current.value
+  const dir = index(id) > index(from) ? 'forward' : 'back'
+  visited.add(from)
+  current.value = id
+  if (import.meta.client) history.replaceState(null, '', '#' + id)
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return settle()
+  sounds.flip()
+  if (dir === 'forward') {
+    // вперёд: лист с прежней страницей уходит влево, на обороте — новое фото
+    rightId.value = id
+    flip.value = { dir, front: from, back: id }
+  } else {
+    // назад: лист с новым фото слева возвращается вправо и ложится новой страницей
+    leftId.value = id
+    flip.value = { dir, front: id, back: from }
+  }
+  flipTimer = window.setTimeout(settle, FLIP_MS)
+}
+
+const fresh = computed(() => !visited.has(rightId.value))
 
 onMounted(() => {
   const id = location.hash.slice(1) as SectionId
   if (SECTIONS.some((s) => s.id === id)) {
     current.value = id
+    rightId.value = id
+    leftId.value = id
     open({ instant: true })
   }
 })
@@ -94,6 +130,7 @@ function onTabKey(e: KeyboardEvent) {
     <SvgDefs />
     <IntroScene v-if="introOn" @done="afterIntro" />
     <div class="lamp" aria-hidden="true" />
+    <div class="vignette" aria-hidden="true" />
     <SnuffMode v-model="snuff" />
 
     <p v-if="state === 'closed' && introDone" class="hint" aria-hidden="true">
@@ -110,19 +147,24 @@ function onTabKey(e: KeyboardEvent) {
         </div>
 
         <div class="sheets">
-          <Transition :name="'sheet-' + direction">
-            <article
-              :key="current"
-              class="sheet"
-              role="tabpanel"
-              :id="'panel-' + current"
-              :aria-labelledby="'tab-' + current"
-              tabindex="-1"
-            >
-              <component :is="pages[current]" v-if="revealed" :fresh="fresh" @go="go" />
-              <p class="sheet-no type" aria-hidden="true">лист {{ index(current) + 1 }}</p>
-            </article>
-          </Transition>
+          <article
+            :key="rightId"
+            class="sheet"
+            role="tabpanel"
+            :id="'panel-' + rightId"
+            :aria-labelledby="'tab-' + rightId"
+            tabindex="-1"
+          >
+            <!-- на телефоне левой страницы нет — фото раздела стоит наверху листа -->
+            <div class="narrow-only strip-photo">
+              <Sketch :kind="sec(rightId).sketch" :photo="sec(rightId).photo" :caption="sec(rightId).caption" />
+            </div>
+            <component :is="pages[rightId]" v-if="revealed" :fresh="fresh" @go="go" />
+            <p class="sheet-no type" aria-hidden="true">лист {{ index(rightId) + 1 }}</p>
+          </article>
+          <!-- тень от поднятого листа бежит по странице под ним -->
+          <span v-if="flip" class="under-shade" :class="flip.dir" aria-hidden="true" />
+
         </div>
 
         <nav class="tabs" role="tablist" aria-label="Разделы дела" aria-orientation="vertical" @keydown="onTabKey">
@@ -148,6 +190,21 @@ function onTabKey(e: KeyboardEvent) {
         </button>
       </section>
 
+      <!-- Переворачиваемый лист — над обложкой: внутри доски его закрывала бы
+           левая страница, как только он уходит влево -->
+      <div v-if="flip" :key="flip.front + flip.back" class="leaf" :class="flip.dir" aria-hidden="true" inert>
+        <div class="leaf-face front sheet">
+          <component :is="pages[flip.front]" :fresh="false" />
+          <span class="shade" />
+        </div>
+        <div class="leaf-face back left-sheet">
+          <LeftPage :section="sec(flip.back)" :current="flip.back" />
+          <span class="shade" />
+        </div>
+      </div>
+      <!-- Свет лампы поверх папки: тёплое пятно справа сверху, к краям темнее -->
+      <div class="lamplight" aria-hidden="true" />
+
       <!-- Обложка: снаружи — «Личное дело», изнутри — фото и опись -->
       <div class="cover">
         <button class="face outside" :tabindex="state === 'open' ? -1 : 0" :aria-hidden="state === 'open'" @click="open()">
@@ -170,25 +227,8 @@ function onTabKey(e: KeyboardEvent) {
         </button>
 
         <div class="face inside" :aria-hidden="state !== 'open'">
-          <div class="photo">
-            <Clip class="photo-clip" />
-            <Sketch caption="фото скоро, пока так" />
-          </div>
-
-          <div class="inventory">
-            <Tape class="inv-tape" :tilt="-4" />
-            <h2 class="type">Опись документов</h2>
-            <ol>
-              <li v-for="(s, i) in SECTIONS" :key="s.id">
-                <button class="inv-row" :class="{ on: current === s.id }" :tabindex="state === 'open' ? 0 : -1" @click="go(s.id)">
-                  <span class="inv-no type">{{ i + 1 }}.</span>
-                  <span class="inv-text">{{ s.inventory }}</span>
-                  <span class="inv-dots" aria-hidden="true" />
-                  <span class="inv-page type">л. {{ i + 1 }}</span>
-                </button>
-              </li>
-            </ol>
-            <PenNote class="inv-note" :tilt="-3">листай закладки справа →</PenNote>
+          <div class="left-sheet">
+            <LeftPage :section="sec(leftId)" :current="current" :interactive="state === 'open'" @go="go" />
           </div>
         </div>
       </div>
@@ -225,6 +265,29 @@ function onTabKey(e: KeyboardEvent) {
   transition: opacity 0.6s;
 }
 
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 52% 46%, transparent 55%, rgb(0 0 0 / 0.55));
+}
+/* Свет лампы на развороте: мягкий свет поверх бумаги, не меняющий её цвет
+   до неузнаваемости — soft-light только подсвечивает и притеняет */
+.lamplight {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px 10px 10px 6px;
+  z-index: 6;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  background: radial-gradient(ellipse 80% 70% at 72% 18%, rgb(255 225 170 / 0.55), transparent 60%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, rgb(20 12 4 / 0.45));
+}
+.open .lamplight {
+  /* раскрытый разворот вдвое шире папки: свет накрывает и левую страницу */
+  inset: 0 0 0 -100%;
+}
+
 .hint {
   position: absolute;
   left: calc(50% - var(--pw) / 2 - 290px);
@@ -253,6 +316,12 @@ function onTabKey(e: KeyboardEvent) {
   perspective: 2400px;
   transform: rotate(-1.6deg);
   transition: transform 1.15s cubic-bezier(0.7, 0, 0.2, 1);
+}
+/* Перспектива нужна только на время переворота обложки. Потом её снимаем:
+   она делает папку «рамкой» для fixed-потомков (на телефоне отрывалась нижняя
+   полоса закладок) и складывалась бы с собственной перспективой листа */
+.revealed .folder {
+  perspective: none;
 }
 .open .folder {
   /* Раскрытый разворот вдвое шире — сдвигаем, чтобы он встал по центру */
@@ -343,27 +412,133 @@ function onTabKey(e: KeyboardEvent) {
   color: var(--ink-soft);
 }
 
-/* Листание: уходящий лист срывают со стопки, под ним уже лежит новый.
-   Назад — наоборот: лист кладут сверху. */
-.sheet-forward-leave-active,
-.sheet-back-enter-active {
-  z-index: 2;
-  transition:
-    transform 0.55s cubic-bezier(0.5, 0, 0.25, 1),
-    opacity 0.55s ease;
+/* ── Перелистывание ─────────────────────────────────────────────────────
+   Лист вращается на корешке: ось — левый край доски, то есть на 12px левее
+   самого листа (столько отступ листов от корешка). Перспектива — в самом
+   transform, а не у предка: перспектива предка ломает position: fixed у
+   нижней полосы закладок на телефоне. */
+.leaf {
+  position: absolute;
+  /* те же отступы, что у листов на доске */
+  inset: 14px 16px 16px 12px;
+  z-index: 5;
+  transform-origin: -12px 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  animation: leaf-forward 1.05s cubic-bezier(0.55, 0.05, 0.3, 1) forwards;
 }
-.sheet-forward-leave-to,
-.sheet-back-enter-from {
-  transform: translate(-70%, -6%) rotate(-9deg);
+.leaf.back {
+  animation-name: leaf-back;
+}
+/* Лист сначала отрывается от стопки (подъём), летит, к концу ложится плавно */
+@keyframes leaf-forward {
+  0% {
+    transform: perspective(2600px) rotateY(0deg);
+  }
+  14% {
+    transform: perspective(2600px) rotateY(-14deg) translateZ(6px);
+  }
+  50% {
+    transform: perspective(2600px) rotateY(-90deg) translateZ(26px);
+  }
+  100% {
+    transform: perspective(2600px) rotateY(-180deg);
+  }
+}
+@keyframes leaf-back {
+  0% {
+    transform: perspective(2600px) rotateY(-180deg);
+  }
+  14% {
+    transform: perspective(2600px) rotateY(-166deg) translateZ(6px);
+  }
+  50% {
+    transform: perspective(2600px) rotateY(-90deg) translateZ(26px);
+  }
+  100% {
+    transform: perspective(2600px) rotateY(0deg);
+  }
+}
+.leaf-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.leaf-face.back {
+  transform: rotateY(180deg);
+}
+/* Свет на летящем листе: у корешка он в тени, к ребру — светлее; темнее
+   всего, когда лист стоит торцом к лампе */
+.shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(20 14 8 / 0.45), rgb(20 14 8 / 0.05) 55%, rgb(255 240 210 / 0.12));
   opacity: 0;
 }
-.sheet-forward-enter-active,
-.sheet-back-leave-active {
-  transition: opacity 0.3s ease 0.15s;
+.leaf.forward .front .shade,
+.leaf.back .back .shade {
+  animation: shade-in 1.05s cubic-bezier(0.55, 0.05, 0.3, 1) forwards;
 }
-.sheet-forward-enter-from,
-.sheet-back-leave-to {
-  opacity: 0.6;
+.leaf.forward .back .shade,
+.leaf.back .front .shade {
+  animation: shade-out 1.05s cubic-bezier(0.55, 0.05, 0.3, 1) forwards;
+}
+.leaf-face.back .shade {
+  background: linear-gradient(-90deg, rgb(20 14 8 / 0.45), rgb(20 14 8 / 0.05) 55%, rgb(255 240 210 / 0.12));
+}
+@keyframes shade-in {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes shade-out {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Тень от поднятого листа на странице под ним */
+.under-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.3), rgb(0 0 0 / 0) 55%);
+  animation: under 1.05s ease forwards;
+}
+.under-shade.back {
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0) 70%);
+}
+@keyframes under {
+  0% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Фото раздела наверху листа — только на телефоне, где нет левой страницы */
+.strip-photo {
+  width: 46%;
+  max-width: 200px;
+  margin: 0 0 20px 4px;
+  transform: rotate(-3deg);
 }
 
 /* ── Закладки ─────────────────────────────────────────────────────────── */
@@ -389,9 +564,13 @@ function onTabKey(e: KeyboardEvent) {
   padding: 7px 14px 7px 16px;
   border: 0;
   border-radius: 0 7px 7px 0;
+  /* пластик: полупрозрачный, с бликом сверху и тенью у корня */
   background:
-    linear-gradient(90deg, rgb(0 0 0 / 0.14), transparent 30%),
-    var(--tab);
+    linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 45%),
+    linear-gradient(90deg, rgb(0 0 0 / 0.16), transparent 30%),
+    color-mix(in srgb, var(--tab) 88%, transparent);
+  border: 1px solid rgb(0 0 0 / 0.08);
+  border-left: 0;
   box-shadow: 1px 2px 3px rgb(0 0 0 / 0.3);
   font-family: var(--hand);
   font-variation-settings: 'INFM' 60, 'BNCE' 30;
@@ -539,10 +718,6 @@ function onTabKey(e: KeyboardEvent) {
 /* Изнанка обложки — левая страница разворота */
 .inside {
   transform: rotateY(180deg);
-  padding: 7% 7% 7% 8%;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 6%;
   background:
     var(--fiber),
     var(--grain),
@@ -550,70 +725,20 @@ function onTabKey(e: KeyboardEvent) {
     var(--kraft-inside);
   overflow: hidden;
 }
-.photo {
-  position: relative;
-  width: 46%;
-  margin-left: 6%;
-  transform: rotate(-3deg);
-}
-.photo-clip {
+/* Левая страница — лист бумаги на изнанке обложки, с тем же отступом от
+   корешка, что у правых листов: перевёрнутый лист ложится ровно на неё */
+.left-sheet {
   position: absolute;
-  top: -28px;
-  left: 22%;
-  z-index: 2;
+  inset: 14px 12px 16px 16px;
+  background:
+    linear-gradient(-90deg, rgb(0 0 0 / 0.12), transparent 8%),
+    var(--grain),
+    var(--paper);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
 }
-
-.inventory {
-  position: relative;
-  align-self: start;
-  padding: 18px 20px 16px;
-  background: var(--grain), var(--paper);
-  box-shadow: 0 2px 6px -2px rgb(0 0 0 / 0.35);
-  transform: rotate(0.8deg);
-}
-.inv-tape {
-  top: -12px;
-  left: 40%;
-}
-.inventory h2 {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-}
-.inventory ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.inv-row {
-  display: grid;
-  grid-template-columns: 1.6em auto 1fr auto;
-  align-items: baseline;
-  gap: 6px;
-  width: 100%;
-  padding: 3px 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  font-size: 0.92rem;
-  cursor: pointer;
-}
-.inv-row:hover .inv-text,
-.inv-row.on .inv-text {
-  background: linear-gradient(transparent 55%, color-mix(in srgb, var(--marker) 85%, transparent) 55% 92%, transparent 92%);
-}
-.inv-no,
-.inv-page {
-  font-size: 0.78rem;
-  color: var(--ink-soft);
-}
-.inv-dots {
-  border-bottom: 1.5px dotted var(--rule);
-  transform: translateY(-4px);
-}
-.inv-note {
-  margin-top: 10px;
+.leaf-face.left-sheet {
+  inset: 0;
 }
 
 .snuff-tab {
@@ -632,12 +757,7 @@ function onTabKey(e: KeyboardEvent) {
   .open .folder {
     transform: none;
   }
-  /* Перспектива нужна только на время переворота обложки. Потом её снимаем:
-     она делает папку «рамкой» для fixed-потомков, и нижняя полоса закладок
-     переставала быть прикреплённой к экрану */
-  .revealed .folder {
-    perspective: none;
-  }
+
   .open .cover {
     transform: rotateY(-180deg) translateZ(1px);
     opacity: 0;
@@ -656,6 +776,13 @@ function onTabKey(e: KeyboardEvent) {
   }
   .sheet {
     padding: 28px 18px 40px 34px;
+  }
+  .open .lamplight {
+    inset: 0;
+  }
+  /* левой страницы нет — оборот листа не нужен, лист просто уходит */
+  .leaf-face.back {
+    display: none;
   }
   .tabs {
     position: fixed;

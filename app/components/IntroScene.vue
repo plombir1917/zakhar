@@ -1,16 +1,22 @@
 <script setup lang="ts">
 /**
- * Вступление: тёмная комната, стол, настольная лампа. Лампа мигает и
- * загорается, в её луче плывёт пыль, камера заходит сбоку мимо лампы и
- * опускается над папкой. Последний кадр снят ровно сверху и подогнан под
- * размер настоящей папки на странице — поэтому сцена не обрывается, а
- * перетекает в стол из разметки.
+ * Вступление: ночная комната, в которой каждый предмет рассказывает про
+ * хозяина дела ещё до того, как открыта папка.
  *
- * three.js подгружается только здесь и только на клиенте: это вступление, а не
- * сайт, и ждать его основному содержимому незачем.
+ * На стене — пробковая доска «расследования»: карточки ролей (сцена, код,
+ * рэп, ивенты, спорт) стянуты красной нитью к «!захару». Сквозь жалюзи луна
+ * кладёт полосы на стену и стол. На столе — ноутбук с кодом, микрофон,
+ * наушники, кружка с паром, кассета, книги; под столом гантель. Лампа мигает
+ * и загорается, в её конусе плывёт пыль.
  *
+ * Камера проходит вдоль доски, скользит над столом и опускается ровно над
+ * папкой. Последний кадр подогнан под размер настоящей папки на странице —
+ * сцена не обрывается, а перетекает в стол из разметки.
+ *
+ * three.js с постобработкой подгружается только здесь и только на клиенте.
  * Пропускается кликом, клавишей или касанием. Не играет при «уменьшить
- * движение», по ссылке на раздел (#kod) и второй раз за сеанс.
+ * движение», по ссылке на раздел и второй раз за сеанс.
+ * ?introAt=секунды — заморозить сцену (скриншоты без видеокарты).
  */
 const emit = defineEmits<{ done: [] }>()
 
@@ -42,24 +48,23 @@ function domFolderHeight() {
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
+const rnd = (a: number, b: number) => a + Math.random() * (b - a)
 
-async function drawCover(): Promise<HTMLCanvasElement> {
-  // Шрифты обложки должны успеть загрузиться, иначе холст нарисует системными
-  await Promise.all([
-    document.fonts.load('700 120px "Shantell Sans Variable"'),
-    document.fonts.load('60px "PT Mono"'),
-    document.fonts.load('60px "Ruslan Display"'),
-  ]).catch(() => {})
+/** Холст под текстуру: рисуем и отдаём */
+function paint(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) {
   const c = document.createElement('canvas')
-  c.width = 1024
-  c.height = 1393
-  const g = c.getContext('2d')!
+  c.width = w
+  c.height = h
+  draw(c.getContext('2d')!)
+  return c
+}
+
+function drawCover(g: CanvasRenderingContext2D) {
   g.fillStyle = '#b8946a'
-  g.fillRect(0, 0, c.width, c.height)
-  // волокна картона
+  g.fillRect(0, 0, 1024, 1393)
   for (let i = 0; i < 2600; i++) {
     g.fillStyle = `rgba(60,40,20,${Math.random() * 0.07})`
-    g.fillRect(Math.random() * c.width, Math.random() * c.height, 20 + Math.random() * 90, 1.4)
+    g.fillRect(Math.random() * 1024, Math.random() * 1393, 20 + Math.random() * 90, 1.4)
   }
   g.fillStyle = 'rgba(27,27,27,.82)'
   g.font = '64px "PT Mono"'
@@ -77,7 +82,6 @@ async function drawCover(): Promise<HTMLCanvasElement> {
   g.fillStyle = '#2b45c6'
   g.font = '700 150px "Shantell Sans Variable"'
   g.fillText('!захар', 150, 790)
-  // штамп
   g.save()
   g.translate(650, 1180)
   g.rotate(-0.19)
@@ -88,26 +92,95 @@ async function drawCover(): Promise<HTMLCanvasElement> {
   g.fillStyle = 'rgba(200,35,44,.85)'
   g.font = '42px "Ruslan Display"'
   g.textAlign = 'center'
-  g.fillText('ХРАНИТЬ ВЕЧНО', 0, 18)
+  g.fillText('ХРАНИТЬ ВЕЧНО', 0, 16)
   g.restore()
-  return c
+}
+
+// Экран ноутбука: кусок кода в духе этого сайта, подсвеченный как в редакторе
+const CODE: [string, string][] = [
+  ['k', 'const '], ['v', 'state '], ['p', '= '], ['f', 'ref'], ['p', "('closed')"], ['n', ''],
+  ['k', 'function '], ['f', 'open'], ['p', '() {'], ['n', ''],
+  ['c', '  // обложка ложится на корешок'], ['n', ''],
+  ['p', '  state.value = '], ['s', "'open'"], ['n', ''],
+  ['p', '}'], ['n', ''], ['n', ''],
+  ['k', 'export const '], ['v', 'BRAND '], ['p', '= '], ['s', "'!захар'"], ['n', ''],
+  ['k', 'const '], ['v', 'height '], ['p', '= '], ['m', '200'], ['c', ' // см'], ['n', ''],
+  ['n', ''], ['k', 'if '], ['p', '(!'], ['v', 'захар'], ['p', ') {'], ['n', ''],
+  ['c', '  // такого не бывает'], ['n', ''], ['p', '}'],
+]
+function drawCode(g: CanvasRenderingContext2D) {
+  g.fillStyle = '#0d1117'
+  g.fillRect(0, 0, 1024, 640)
+  g.fillStyle = '#161b22'
+  g.fillRect(0, 0, 1024, 46)
+  ;['#ff5f56', '#ffbd2e', '#27c93f'].forEach((c, i) => {
+    g.fillStyle = c
+    g.beginPath()
+    g.arc(30 + i * 28, 23, 8, 0, 6.3)
+    g.fill()
+  })
+  const col: Record<string, string> = {
+    k: '#ff7b72', v: '#ffa657', p: '#c9d1d9', f: '#d2a8ff', s: '#a5d6ff', c: '#8b949e', m: '#79c0ff',
+  }
+  g.font = '30px "PT Mono"'
+  let x = 70
+  let y = 100
+  let line = 1
+  g.fillStyle = '#484f58'
+  g.fillText('1', 20, y)
+  for (const [k, t] of CODE) {
+    if (k === 'n') {
+      y += 42
+      x = 70
+      line++
+      g.fillStyle = '#484f58'
+      g.fillText(String(line), 20, y)
+      continue
+    }
+    g.fillStyle = col[k]!
+    g.fillText(t, x, y)
+    x += g.measureText(t).width
+  }
+}
+
+function drawCork(g: CanvasRenderingContext2D) {
+  g.fillStyle = '#9b6f45'
+  g.fillRect(0, 0, 1024, 640)
+  for (let i = 0; i < 9000; i++) {
+    const l = rnd(-40, 40)
+    g.fillStyle = `rgba(${120 + l},${85 + l},${50 + l * 0.5},.55)`
+    g.fillRect(Math.random() * 1024, Math.random() * 640, rnd(1, 4), rnd(1, 4))
+  }
+}
+
+function drawCard(text: string, color: string, hot: boolean) {
+  return (g: CanvasRenderingContext2D) => {
+    g.fillStyle = color
+    g.fillRect(0, 0, 256, 192)
+    for (let y = 46; y < 192; y += 26) {
+      g.fillStyle = 'rgba(43,69,198,.18)'
+      g.fillRect(0, y, 256, 2)
+    }
+    g.fillStyle = hot ? '#c8232c' : '#1b2a8a'
+    g.font = `700 ${text.length > 7 ? 38 : 46}px "Shantell Sans Variable"`
+    g.textAlign = 'center'
+    g.fillText(text, 128, 118)
+  }
 }
 
 onMounted(async () => {
-  // ?introAt=2.5 — заморозить сцену на этой секунде (для скриншотов и отладки:
-  // без видеокарты кадр рисуется секундами, и «живое» время проскакивает)
   const frozenAt = Number(new URLSearchParams(location.search).get('introAt')) || 0
   const skip =
     !frozenAt &&
-    matchMedia('(prefers-reduced-motion: reduce)').matches ||
-    location.hash.length > 1 ||
-    (() => {
-      try {
-        return sessionStorage.getItem('intro-seen') === '1'
-      } catch {
-        return false
-      }
-    })()
+    (matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      location.hash.length > 1 ||
+      (() => {
+        try {
+          return sessionStorage.getItem('intro-seen') === '1'
+        } catch {
+          return false
+        }
+      })())
   if (skip) {
     finished = true
     fading.value = true
@@ -115,111 +188,338 @@ onMounted(async () => {
     return
   }
 
-  const THREE = await import('three')
+  const [THREE, { EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }, { ShaderPass }] =
+    await Promise.all([
+      import('three'),
+      import('three/examples/jsm/postprocessing/EffectComposer.js'),
+      import('three/examples/jsm/postprocessing/RenderPass.js'),
+      import('three/examples/jsm/postprocessing/UnrealBloomPass.js'),
+      import('three/examples/jsm/postprocessing/OutputPass.js'),
+      import('three/examples/jsm/postprocessing/ShaderPass.js'),
+    ])
+  // Шрифты для текстур: в разработке CSS с @font-face подключается позже
+  // монтирования, и load() отвечает пустотой — тогда обложка рисуется Times.
+  // Ждём, пока шрифты действительно доступны, но не дольше трёх секунд.
+  // Две ловушки. check() отвечает «да», когда шрифта в списке ещё нет вовсе.
+  // А кириллица у этих шрифтов — отдельный файл (unicode-range), и load() без
+  // образца текста грузит только латиницу: «200» рисовалось своим шрифтом,
+  // а «!захар» — Times. Поэтому грузим с кириллическим образцом и считаем
+  // готовым, только когда load() вернул загруженные начертания по каждому.
+  const SAMPLE = 'Личное дело !захар Фамилия ХРАНИТЬ 200'
+  const faces = ['700 120px "Shantell Sans Variable"', '30px "PT Mono"', '42px "Ruslan Display"']
+  for (let i = 0; i < 60; i++) {
+    const got = await Promise.all(faces.map((f) => document.fonts.load(f, SAMPLE).catch(() => [])))
+    if (got.every((list) => list.length > 0)) break
+    await new Promise((r) => setTimeout(r, 50))
+  }
+
   const el = host.value!
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
   renderer.setSize(innerWidth, innerHeight)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.25
+  renderer.toneMappingExposure = 1.05
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   el.appendChild(renderer.domElement)
 
+  const tex = (c: HTMLCanvasElement) => {
+    const t = new THREE.CanvasTexture(c)
+    t.colorSpace = THREE.SRGBColorSpace
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    return t
+  }
+  const mat = (o: ConstructorParameters<typeof THREE.MeshStandardMaterial>[0]) => new THREE.MeshStandardMaterial(o)
+  const shadowy = <T extends THREE.Object3D>(m: T): T => {
+    m.traverse((o) => {
+      o.castShadow = true
+      o.receiveShadow = true
+    })
+    return m
+  }
+
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color('#060504')
-  scene.fog = new THREE.FogExp2('#060504', 0.22)
-
-  const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 50)
-
-  // ── Свет: лунный холод из окна и тёплая лампа ──────────────────────────
-  scene.add(new THREE.AmbientLight('#8a96b0', 0.14))
-  const moon = new THREE.DirectionalLight('#7f96c8', 0.7)
-  moon.position.set(-3, 2.5, 1.5)
-  scene.add(moon)
+  scene.background = new THREE.Color('#050406')
+  scene.fog = new THREE.FogExp2('#07060a', 0.16)
+  const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 60)
 
   const DESK_Y = 0.75
-  const wood = new THREE.MeshStandardMaterial({ color: '#5b4130', roughness: 0.55, metalness: 0.05 })
-  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.07, 1.5), wood)
-  desk.position.set(0, DESK_Y - 0.035, 0)
-  desk.receiveShadow = true
-  scene.add(desk)
-  for (const [x, z] of [[-1.2, -0.65], [1.2, -0.65], [-1.2, 0.65], [1.2, 0.65]]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, DESK_Y - 0.07, 0.07), wood)
-    leg.position.set(x!, (DESK_Y - 0.07) / 2, z!)
-    scene.add(leg)
-  }
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshStandardMaterial({ color: '#15110d', roughness: 0.9 }),
-  )
+  const WALL_Z = -1.35
+
+  // ── Комната: пол, стена, окно ────────────────────────────────────────
+  scene.add(new THREE.AmbientLight('#6f7ca0', 0.1))
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), mat({ color: '#17120e', roughness: 0.85 }))
   floor.rotation.x = -Math.PI / 2
   floor.receiveShadow = true
   scene.add(floor)
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(14, 6), mat({ color: '#2a2c33', roughness: 0.95 }))
+  wall.position.set(0, 3, WALL_Z)
+  wall.receiveShadow = true
+  scene.add(wall)
+  // окно слева: рама и холодное стекло, на нём ламели жалюзи
+  const frameMat = mat({ color: '#1b1d22', roughness: 0.6 })
+  const win = new THREE.Group()
+  win.add(
+    new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 1.3),
+      new THREE.MeshBasicMaterial({ color: '#2a3f66', transparent: true, opacity: 0.55 }),
+    ),
+  )
+  for (const [w, h, x, y] of [
+    [1.2, 0.06, 0, 0.68],
+    [1.2, 0.06, 0, -0.68],
+    [0.06, 1.42, -0.58, 0],
+    [0.06, 1.42, 0.58, 0],
+    [0.04, 1.3, 0, 0],
+  ] as const) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), frameMat)
+    b.position.set(x, y, 0.02)
+    win.add(b)
+  }
+  const slatMat = mat({ color: '#3b3f48', roughness: 0.5 })
+  for (let i = 0; i < 16; i++) {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.012, 0.05), slatMat)
+    s.position.set(0, 0.62 - i * 0.08, 0.06)
+    s.rotation.x = 0.7
+    win.add(s)
+  }
+  win.position.set(-1.75, 1.65, WALL_Z + 0.01)
+  scene.add(win)
 
-  // ── Папка ─────────────────────────────────────────────────────────────
+  // Луна сквозь жалюзи: прожектор с «печеньем» из полос рисует решётку света
+  const blinds = tex(
+    paint(512, 512, (g) => {
+      g.fillStyle = '#000'
+      g.fillRect(0, 0, 512, 512)
+      g.fillStyle = '#fff'
+      for (let y = 0; y < 512; y += 32) g.fillRect(40, y + 8, 432, 16)
+      g.fillStyle = '#000'
+      g.fillRect(250, 0, 12, 512)
+    }),
+  )
+  const moon = new THREE.SpotLight('#8fa9e0', 14, 9, 0.42, 0.25, 1.1)
+  moon.map = blinds
+  moon.position.set(-3.6, 2.6, -0.2)
+  moon.target.position.set(-0.4, 1.0, WALL_Z)
+  moon.castShadow = true
+  moon.shadow.mapSize.set(1024, 1024)
+  scene.add(moon, moon.target)
+
+  // ── Пробковая доска «расследования» ──────────────────────────────────
+  const board = new THREE.Group()
+  board.add(
+    new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.94, 0.03), [
+      frameMat,
+      frameMat,
+      frameMat,
+      frameMat,
+      mat({ map: tex(paint(1024, 640, drawCork)), roughness: 0.95 }),
+      frameMat,
+    ]),
+  )
+  const cards = [
+    { text: '!захар', x: 0, y: 0.04, r: -0.03, color: '#f4f1e8', hot: true },
+    { text: 'сцена', x: -0.52, y: 0.27, r: 0.08, color: '#f6d6e2', hot: false },
+    { text: 'код', x: 0.5, y: 0.28, r: -0.07, color: '#d9e8f7', hot: false },
+    { text: 'рэп', x: -0.5, y: -0.24, r: -0.05, color: '#e3dcf7', hot: false },
+    { text: 'ивенты', x: 0.48, y: -0.25, r: 0.06, color: '#dbeed2', hot: false },
+    { text: 'спорт', x: -0.02, y: -0.34, r: 0.04, color: '#f7e2c8', hot: false },
+    { text: 'DJ Снюф?', x: 0.02, y: 0.36, r: -0.06, color: '#fff6a8', hot: true },
+  ]
+  const pins: THREE.Vector3[] = []
+  const pinMat = mat({ color: '#c8232c', roughness: 0.3, metalness: 0.2 })
+  for (const c of cards) {
+    const card = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.24, 0.18),
+      mat({ map: tex(paint(256, 192, drawCard(c.text, c.color, c.hot))), roughness: 0.9 }),
+    )
+    card.position.set(c.x, c.y, 0.02)
+    card.rotation.z = c.r
+    board.add(card)
+    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), pinMat)
+    pin.position.set(c.x, c.y + 0.07, 0.035)
+    board.add(pin)
+    pins.push(pin.position.clone())
+  }
+  // красная нить от каждой карточки к «!захару»
+  const thread = mat({ color: '#b3161f', roughness: 0.6 })
+  for (let i = 1; i < pins.length; i++) {
+    const a = pins[0]!
+    const b = pins[i]!
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, a.distanceTo(b), 6), thread)
+    s.position.copy(a).add(b).multiplyScalar(0.5)
+    s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize())
+    board.add(s)
+  }
+  board.position.set(0.05, 1.55, WALL_Z + 0.02)
+  scene.add(shadowy(board))
+
+  // ── Стол ─────────────────────────────────────────────────────────────
+  const wood = mat({ color: '#5b4130', roughness: 0.5, metalness: 0.04 })
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.07, 1.5), wood)
+  desk.position.set(0, DESK_Y - 0.035, -0.2)
+  scene.add(shadowy(desk))
+  for (const [x, z] of [
+    [-1.2, -0.85],
+    [1.2, -0.85],
+    [-1.2, 0.45],
+    [1.2, 0.45],
+  ] as const) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, DESK_Y - 0.07, 0.07), wood)
+    leg.position.set(x, (DESK_Y - 0.07) / 2, z)
+    scene.add(shadowy(leg))
+  }
+
+  // ── Папка ────────────────────────────────────────────────────────────
   const FW = 0.56
   const FH = FW * 1.36
-  const coverTex = new THREE.CanvasTexture(await drawCover())
-  coverTex.colorSpace = THREE.SRGBColorSpace
-  coverTex.anisotropy = renderer.capabilities.getMaxAnisotropy()
-  const kraft = new THREE.MeshStandardMaterial({ color: '#9c7a52', roughness: 0.85 })
+  const kraft = mat({ color: '#9c7a52', roughness: 0.85 })
   const folder = new THREE.Mesh(new THREE.BoxGeometry(FW, 0.014, FH), [
-    kraft, kraft, new THREE.MeshStandardMaterial({ map: coverTex, roughness: 0.82 }), kraft, kraft, kraft,
+    kraft,
+    kraft,
+    mat({ map: tex(paint(1024, 1393, drawCover)), roughness: 0.82 }),
+    kraft,
+    kraft,
+    kraft,
   ])
   folder.position.set(0, DESK_Y + 0.007, 0)
   folder.rotation.y = (1.6 * Math.PI) / 180
-  folder.castShadow = true
-  folder.receiveShadow = true
-  scene.add(folder)
-  // закладки торчат из-под обложки
-  const tabColors = ['#f5d547', '#f28db2', '#8ec5ff', '#7fbf6a', '#b9a3f0', '#f3a25c', '#ef6a5b']
-  tabColors.forEach((col, i) => {
-    const tab = new THREE.Mesh(
-      new THREE.BoxGeometry(0.07, 0.006, 0.032),
-      new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 }),
-    )
+  ;['#d9bb3c', '#d97fa0', '#7fb0e0', '#73aa60', '#a693d8', '#d98f50', '#d65e50'].forEach((col, i) => {
+    const tab = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.006, 0.032), mat({ color: col, roughness: 0.35 }))
     tab.position.set(FW / 2 + 0.03, 0.002, -FH / 2 + 0.06 + i * 0.04)
     folder.add(tab)
   })
+  scene.add(shadowy(folder))
 
-  // ── Предметы на столе: ручка, бумажка Снюфа, листы ────────────────────
-  const pen = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.006, 0.006, 0.15, 12),
-    new THREE.MeshStandardMaterial({ color: '#2b45c6', roughness: 0.3, metalness: 0.2 }),
+  // ── Ноутбук с кодом ──────────────────────────────────────────────────
+  const alu = mat({ color: '#3a3d44', roughness: 0.35, metalness: 0.8 })
+  const laptop = new THREE.Group()
+  const lapBase = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.016, 0.25), alu)
+  lapBase.position.y = 0.008
+  laptop.add(lapBase)
+  const hinge = new THREE.Group()
+  hinge.position.set(0, 0.016, -0.125)
+  hinge.rotation.x = -1.85
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.01, 0.24), alu)
+  lid.position.set(0, 0, 0.12)
+  hinge.add(lid)
+  const screenTex = tex(paint(1024, 640, drawCode))
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.33, 0.21),
+    new THREE.MeshStandardMaterial({ map: screenTex, emissive: '#ffffff', emissiveMap: screenTex, emissiveIntensity: 0.9 }),
   )
+  screen.rotation.x = Math.PI / 2
+  screen.position.set(0, -0.0055, 0.12)
+  hinge.add(screen)
+  laptop.add(hinge)
+  laptop.position.set(-0.78, DESK_Y, -0.45)
+  laptop.rotation.y = 0.5
+  scene.add(shadowy(laptop))
+  const screenGlow = new THREE.PointLight('#6f9cff', 0.9, 1.4, 2)
+  screenGlow.position.set(-0.7, DESK_Y + 0.18, -0.35)
+  scene.add(screenGlow)
+
+  // ── Микрофон, наушники, кружка, книги, кассета, ручка, бумажка ──────
+  const black = mat({ color: '#141416', roughness: 0.4, metalness: 0.3 })
+  const mic = new THREE.Group()
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.012, 0.18, 20), black)
+  handle.rotation.z = Math.PI / 2
+  mic.add(handle)
+  const grille = new THREE.Mesh(new THREE.SphereGeometry(0.03, 24, 16), mat({ color: '#9aa0a8', roughness: 0.35, metalness: 0.9 }))
+  grille.position.x = 0.11
+  mic.add(grille)
+  mic.position.set(0.48, DESK_Y + 0.03, 0.32)
+  mic.rotation.y = -0.7
+  scene.add(shadowy(mic))
+
+  const phones = new THREE.Group()
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.01, 10, 32, Math.PI), black)
+  band.rotation.x = -Math.PI / 2
+  phones.add(band)
+  for (const s of [-1, 1]) {
+    const earCup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 24), black)
+    earCup.position.set(s * 0.09, 0.02, 0)
+    phones.add(earCup)
+  }
+  phones.position.set(-0.45, DESK_Y + 0.012, 0.36)
+  phones.rotation.y = 0.4
+  scene.add(shadowy(phones))
+
+  const ceramic = mat({ color: '#d9d4c7', roughness: 0.35 })
+  const mug = new THREE.Group()
+  const cup = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.045, 0.04, 0.1, 28, 1, true),
+    new THREE.MeshStandardMaterial({ color: '#d9d4c7', roughness: 0.35, side: THREE.DoubleSide }),
+  )
+  cup.position.y = 0.05
+  mug.add(cup)
+  const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.043, 24), mat({ color: '#2b1a10', roughness: 0.15 }))
+  coffee.rotation.x = -Math.PI / 2
+  coffee.position.y = 0.085
+  mug.add(coffee)
+  const ear = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.007, 8, 16), ceramic)
+  ear.position.set(0.05, 0.05, 0)
+  mug.add(ear)
+  mug.position.set(0.68, DESK_Y, -0.22)
+  scene.add(shadowy(mug))
+
+  const books = new THREE.Group()
+  ;(
+    [
+      ['#6b2430', 0.3, 0.05],
+      ['#1f3a5c', 0.28, 0.04],
+      ['#3d4a2a', 0.31, 0.045],
+    ] as const
+  ).forEach(([c, w, h], i) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.21), mat({ color: c, roughness: 0.7 }))
+    b.position.set(rnd(-0.01, 0.01), 0.025 + i * 0.047, 0)
+    b.rotation.y = rnd(-0.12, 0.12)
+    books.add(b)
+  })
+  books.position.set(-1.0, DESK_Y, 0.05)
+  books.rotation.y = -0.3
+  scene.add(shadowy(books))
+
+  const cassette = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.064), mat({ color: '#2a2730', roughness: 0.5 }))
+  cassette.position.set(-0.28, DESK_Y + 0.006, 0.47)
+  cassette.rotation.y = 0.35
+  scene.add(shadowy(cassette))
+  const pen = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.15, 12), mat({ color: '#2b45c6', roughness: 0.3, metalness: 0.2 }))
   pen.rotation.set(Math.PI / 2, 0, 0.9)
-  pen.position.set(0.45, DESK_Y + 0.006, 0.28)
-  pen.castShadow = true
-  scene.add(pen)
-  const note = new THREE.Mesh(
-    new THREE.BoxGeometry(0.14, 0.002, 0.09),
-    new THREE.MeshStandardMaterial({ color: '#e23a3a', roughness: 0.7 }),
-  )
-  note.position.set(-0.62, DESK_Y + 0.001, 0.42)
+  pen.position.set(0.4, DESK_Y + 0.006, 0.12)
+  scene.add(shadowy(pen))
+  const note = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.002, 0.09), mat({ color: '#e23a3a', roughness: 0.7 }))
+  note.position.set(-0.55, DESK_Y + 0.001, 0.08)
   note.rotation.y = 0.12
-  scene.add(note)
-  const sheets = new THREE.Mesh(
-    new THREE.BoxGeometry(0.42, 0.006, 0.58),
-    new THREE.MeshStandardMaterial({ color: '#e9eae6', roughness: 0.9 }),
-  )
-  sheets.position.set(-0.78, DESK_Y + 0.003, -0.22)
-  sheets.rotation.y = -0.25
-  sheets.receiveShadow = true
-  scene.add(sheets)
+  scene.add(shadowy(note))
 
-  // ── Лампа ─────────────────────────────────────────────────────────────
-  const metal = new THREE.MeshStandardMaterial({ color: '#1f2a24', roughness: 0.35, metalness: 0.7 })
+  // гантель под столом — спорт «для себя»
+  const dumbbell = new THREE.Group()
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.32, 12), alu)
+  bar.rotation.z = Math.PI / 2
+  dumbbell.add(bar)
+  for (const s of [-1, 1]) {
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 24), black)
+    plate.rotation.z = Math.PI / 2
+    plate.position.x = s * 0.12
+    dumbbell.add(plate)
+  }
+  dumbbell.position.set(0.7, 0.07, 0.75)
+  dumbbell.rotation.y = 0.6
+  scene.add(shadowy(dumbbell))
+
+  // ── Лампа ────────────────────────────────────────────────────────────
+  const lampMetal = mat({ color: '#1f2a24', roughness: 0.35, metalness: 0.7 })
   const lamp = new THREE.Group()
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.03, 32), metal)
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.03, 32), lampMetal)
   base.position.y = 0.015
   lamp.add(base)
-  const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.42, 12), metal)
+  const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.42, 12), lampMetal)
   arm1.position.set(0, 0.22, 0.04)
   arm1.rotation.x = 0.25
   lamp.add(arm1)
-  const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.36, 12), metal)
+  const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.36, 12), lampMetal)
   arm2.position.set(0, 0.44, 0.2)
   arm2.rotation.x = -1.15
   lamp.add(arm2)
@@ -234,38 +534,38 @@ onMounted(async () => {
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 16), bulbMat)
   bulb.position.set(0, 0.47, 0.38)
   lamp.add(bulb)
-  // Лампа стоит за верхним правым краем последнего кадра: в нём она уже не
-  // нужна — от неё остаётся пятно света, как у лампы-градиента в разметке
   lamp.position.set(0.82, DESK_Y, -0.72)
   lamp.rotation.y = -0.72
-  lamp.traverse((o) => ((o as THREE.Mesh).castShadow = true))
-  scene.add(lamp)
+  scene.add(shadowy(lamp))
+  scene.updateMatrixWorld(true)
 
   const bulbWorld = new THREE.Vector3()
   bulb.getWorldPosition(bulbWorld)
-  const spot = new THREE.SpotLight('#ffcf8f', 0, 1.9, 0.66, 0.7, 1.6)
+  const target = new THREE.Vector3(0, DESK_Y, 0.05)
+  const spot = new THREE.SpotLight('#ffcf8f', 0, 2.2, 0.66, 0.7, 1.5)
   spot.position.copy(bulbWorld)
-  spot.target.position.set(0, DESK_Y, 0.05)
+  spot.target.position.copy(target)
   spot.castShadow = true
   spot.shadow.mapSize.set(2048, 2048)
   spot.shadow.bias = -0.0004
-  spot.shadow.radius = 4
+  spot.shadow.radius = 5
   scene.add(spot, spot.target)
-  const glow = new THREE.PointLight('#ffbf70', 0, 1.2, 2)
+  const glow = new THREE.PointLight('#ffbf70', 0, 1.3, 2)
   glow.position.copy(bulbWorld)
   scene.add(glow)
 
-  // ── Пыль в луче ──────────────────────────────────────────────────────
-  const N = 520
+  // ── Пыль в луче и пар над кружкой ───────────────────────────────────
+  const N = 600
   const pos = new Float32Array(N * 3)
   const seed = new Float32Array(N)
   for (let i = 0; i < N; i++) {
     const t = Math.random()
-    const r = Math.random() * 0.12 + t * 0.35
+    const r = Math.random() * (0.03 + t * 0.4)
     const a = Math.random() * Math.PI * 2
-    pos[i * 3] = bulbWorld.x + (0 - bulbWorld.x) * t + Math.cos(a) * r
-    pos[i * 3 + 1] = bulbWorld.y + (DESK_Y + 0.05 - bulbWorld.y) * t
-    pos[i * 3 + 2] = bulbWorld.z + (0.05 - bulbWorld.z) * t + Math.sin(a) * r
+    const pnt = bulbWorld.clone().lerp(target, t)
+    pos[i * 3] = pnt.x + Math.cos(a) * r
+    pos[i * 3 + 1] = pnt.y + rnd(-0.05, 0.05)
+    pos[i * 3 + 2] = pnt.z + Math.sin(a) * r
     seed[i] = Math.random() * 100
   }
   const dustGeo = new THREE.BufferGeometry()
@@ -273,7 +573,7 @@ onMounted(async () => {
   const base0 = pos.slice()
   const dustMat = new THREE.PointsMaterial({
     color: '#ffe0b0',
-    size: 0.006,
+    size: 0.005,
     transparent: true,
     opacity: 0,
     depthWrite: false,
@@ -281,33 +581,83 @@ onMounted(async () => {
   })
   scene.add(new THREE.Points(dustGeo, dustMat))
 
+  const puff = tex(
+    paint(64, 64, (g) => {
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32)
+      gr.addColorStop(0, 'rgba(255,255,255,.55)')
+      gr.addColorStop(1, 'rgba(255,255,255,0)')
+      g.fillStyle = gr
+      g.fillRect(0, 0, 64, 64)
+    }),
+  )
+  const steam = Array.from({ length: 18 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puff, transparent: true, depthWrite: false, opacity: 0 }))
+    s.userData.off = i / 18
+    scene.add(s)
+    return s
+  })
+  const mugTop = new THREE.Vector3(0.68, DESK_Y + 0.09, -0.22)
+
+  // ── Постобработка: свечение, виньетка, зерно, лёгкое расслоение ──────
+  const composer = new EffectComposer(renderer)
+  composer.addPass(new RenderPass(scene, camera))
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.45, 0.6, 0.9))
+  composer.addPass(new OutputPass())
+  const grade = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uVig: { value: 1 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse; uniform float uTime, uVig; varying vec2 vUv;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 61.7) * 43758.5453); }
+      void main(){
+        vec2 d = vUv - 0.5;
+        float ca = dot(d, d) * 0.012 * uVig;
+        vec3 c = vec3(texture2D(tDiffuse, vUv + d * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * ca).b);
+        c *= mix(1.0, smoothstep(0.95, 0.2, length(d * vec2(1.1, 1.0))), 0.75 * uVig);
+        c += (h(vUv * 900.0) - 0.5) * 0.045 * (0.4 + 0.6 * uVig);
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  })
+  composer.addPass(grade)
+
   // ── Путь камеры ──────────────────────────────────────────────────────
   const fovRad = (camera.fov * Math.PI) / 180
   let finalH = (FH * innerHeight) / (domFolderHeight() * 2 * Math.tan(fovRad / 2))
   const narrow = innerWidth <= 900
-  // На телефоне папка в разметке прижата к верху — сдвигаем последний кадр так же
-  const finalZ = narrow ? ((innerHeight / 2 - (10 + domFolderHeight() / 2)) / innerHeight) * 2 * finalH * Math.tan(fovRad / 2) : 0
-  const path = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.2, 1.25, 3.4),
-    new THREE.Vector3(0.95, 1.05, 1.7),
-    new THREE.Vector3(0.6, 1.25, 0.75),
-    new THREE.Vector3(0.12, DESK_Y + finalH * 0.7, 0.18),
-    new THREE.Vector3(0, DESK_Y + finalH, finalZ + 0.0001),
+  const finalZ = narrow
+    ? ((innerHeight / 2 - (10 + domFolderHeight() / 2)) / innerHeight) * 2 * finalH * Math.tan(fovRad / 2)
+    : 0
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
+  // камера: из темноты вдоль доски, вправо над кружкой, низко над столом, вверх над папкой
+  const camPath = new THREE.CatmullRomCurve3([
+    V(-1.25, 1.5, 2.7),
+    V(-0.55, 1.42, 1.25),
+    V(0.55, 1.22, 0.85),
+    V(0.42, 1.0, 0.42),
+    V(0.12, DESK_Y + finalH * 0.72, 0.16),
+    V(0, DESK_Y + finalH, finalZ + 0.0001),
   ])
-  const lookFrom = new THREE.Vector3(0.3, 0.9, -0.1)
-  const lookTo = new THREE.Vector3(0, DESK_Y, finalZ)
+  // взгляд: доска → «!захар» → ноутбук → стол → папка
+  const lookPath = new THREE.CatmullRomCurve3([
+    V(-0.25, 1.45, WALL_Z),
+    V(0.05, 1.5, WALL_Z),
+    V(-0.45, 0.95, -0.4),
+    V(0.05, DESK_Y, -0.05),
+    V(0, DESK_Y, finalZ),
+    V(0, DESK_Y, finalZ),
+  ])
+  const upFrom = V(0, 1, 0)
+  const upTo = V(0, 0, -1)
   const look = new THREE.Vector3()
-  const upFrom = new THREE.Vector3(0, 1, 0)
-  const upTo = new THREE.Vector3(0, 0, -1)
 
-  const T_LAMP = 0.55
-  const T_MOVE = 1.15
-  const T_END = 4.9
-  // Мигание лампы: включилась, погасла, снова — как старая лампа с плохим контактом
-  const flicker = [0, 1, 0.08, 0.85, 0.15, 1, 1]
+  const T_LAMP = 0.7
+  const T_MOVE = 1.1
+  const T_END = 7.2
+  // Лампа со старым контактом: включилась, погасла, снова
+  const flicker = [0, 1, 0.08, 0.85, 0.15, 0.95, 0.4, 1, 1]
   const lampAt = (t: number) => {
     if (t < T_LAMP) return 0
-    const k = (t - T_LAMP) / 0.75
+    const k = (t - T_LAMP) / 0.9
     if (k >= 1) return 1
     return flicker[Math.floor(k * (flicker.length - 1))]!
   }
@@ -317,12 +667,12 @@ onMounted(async () => {
   function frame() {
     const t = frozenAt || clock.getElapsedTime()
     const l = lampAt(t)
-    spot.intensity = l * 9
-    glow.intensity = l * 0.8
-    bulbMat.emissiveIntensity = l * 6
-    dustMat.opacity = l * 0.55
+    spot.intensity = l * 6
+    glow.intensity = l * 0.5
+    bulbMat.emissiveIntensity = l * 7
+    dustMat.opacity = l * 0.6
+    screenGlow.intensity = 0.9 + Math.sin(t * 7) * 0.04
 
-    // пыль медленно плывёт и кружится
     const p = dustGeo.attributes.position!.array as Float32Array
     for (let i = 0; i < N; i++) {
       const s = seed[i]!
@@ -332,17 +682,26 @@ onMounted(async () => {
     }
     dustGeo.attributes.position!.needsUpdate = true
 
+    for (const s of steam) {
+      const k = (t * 0.25 + s.userData.off) % 1
+      s.position.set(mugTop.x + Math.sin(k * 9 + s.userData.off * 20) * 0.02 * k, mugTop.y + k * 0.28, mugTop.z)
+      s.scale.setScalar(0.04 + k * 0.12)
+      s.material.opacity = Math.sin(k * Math.PI) * 0.22
+    }
+
     const m = ease(clamp01((t - T_MOVE) / (T_END - T_MOVE)))
-    camera.position.copy(path.getPoint(m))
-    // лёгкое «дыхание» ручной камеры, затухает к последнему кадру
-    const breath = (1 - m) * 0.012
+    camera.position.copy(camPath.getPoint(m))
+    const breath = (1 - m) * 0.01
     camera.position.x += Math.sin(t * 1.3) * breath
     camera.position.y += Math.sin(t * 1.7) * breath
-    look.lerpVectors(lookFrom, lookTo, ease(clamp01((m - 0.15) / 0.85)))
-    camera.up.lerpVectors(upFrom, upTo, ease(clamp01((m - 0.55) / 0.45))).normalize()
+    look.copy(lookPath.getPoint(m))
+    camera.up.lerpVectors(upFrom, upTo, ease(clamp01((m - 0.7) / 0.3))).normalize()
     camera.lookAt(look)
+    // к последнему кадру виньетка и зерно уходят — на странице их нет, стык был бы виден
+    grade.uniforms.uVig!.value = 1 - ease(clamp01((m - 0.8) / 0.2))
+    grade.uniforms.uTime!.value = t
 
-    renderer.render(scene, camera)
+    composer.render()
     if (t >= T_END && !finished && !frozenAt) finish()
     raf = requestAnimationFrame(frame)
   }
@@ -350,6 +709,7 @@ onMounted(async () => {
 
   const onResize = () => {
     renderer.setSize(innerWidth, innerHeight)
+    composer.setSize(innerWidth, innerHeight)
     camera.aspect = innerWidth / innerHeight
     camera.updateProjectionMatrix()
     finalH = (FH * innerHeight) / (domFolderHeight() * 2 * Math.tan(fovRad / 2))
@@ -362,9 +722,9 @@ onMounted(async () => {
     cancelAnimationFrame(raf)
     removeEventListener('resize', onResize)
     removeEventListener('keydown', onSkip)
+    composer.dispose()
     renderer.dispose()
     renderer.domElement.remove()
-    coverTex.dispose()
   }
 })
 
@@ -383,7 +743,7 @@ onBeforeUnmount(() => stop())
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: #060504;
+  background: #050406;
   transition: opacity 0.85s ease;
   cursor: pointer;
 }

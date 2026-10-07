@@ -20,7 +20,7 @@ const tick = (i: number) => (props.fresh ? 0.3 + i * 0.22 : 0)
 <template>
   <div class="iventy">
     <header class="page-head">
-      <h1 class="page-title">Ивенты</h1>
+      <Typewriter tag="h1" class="page-title" text="Ивенты" :armed="fresh" :start="fresh" :pace="70" />
       <PenNote :tilt="-3">за кулисами</PenNote>
     </header>
 
