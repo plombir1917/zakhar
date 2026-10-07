@@ -241,6 +241,14 @@ function onTabKey(e: KeyboardEvent) {
 .desk {
   --pw: min(560px, 44vw, calc((100svh - 72px) / 1.36));
   --ph: calc(var(--pw) * 1.36);
+  /* Фон — кадр 3D-сцены вступления сверху (public/desk.jpg, npm run
+     desk-shot). Масштаб привязан к папке: кадр в k раз выше неё, и тогда
+     ноутбук, кружка и лампа стоят ровно там, где их оставила камера. */
+  --desk-k: 2.6261;
+  --desk-h: calc(var(--ph) * var(--desk-k));
+  /* по центру; проценты в background-position считаются от разницы
+     размеров, поэтому «50%» — это и есть центр кадра по центру стола */
+  --desk-y: 50%;
   position: relative;
   min-height: 100svh;
   display: grid;
@@ -250,19 +258,25 @@ function onTabKey(e: KeyboardEvent) {
   overflow: clip;
   background:
     var(--grain),
-    radial-gradient(ellipse 70% 60% at 50% 42%, var(--desk-glow), transparent 70%),
-    repeating-linear-gradient(92deg, rgb(255 255 255 / 0.012) 0 3px, transparent 3px 11px),
-    var(--desk);
+    url('/desk.jpg') 50% var(--desk-y) / auto var(--desk-h) no-repeat,
+    #050403;
 }
 
 /* Лампа: тёплое пятно света на папке — тот же приём, что и прожектор на
    сцене, только здесь он светит на бумаги */
+/* Свет лампы уже в кадре стола; здесь — только лёгкое дыхание накала, чтобы
+   стол не выглядел фотографией */
 .lamp {
   position: absolute;
-  inset: -20%;
-  background: radial-gradient(circle at 52% 40%, rgb(255 226 170 / 0.16), transparent 42%);
+  inset: 0;
+  background: radial-gradient(circle at 50% 46%, rgb(255 210 150 / 0.06), transparent 40%);
   pointer-events: none;
-  transition: opacity 0.6s;
+  animation: breathe 6s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .vignette {
@@ -750,6 +764,8 @@ function onTabKey(e: KeyboardEvent) {
   .desk {
     --pw: calc(100vw - 20px);
     --ph: calc(100svh - 92px);
+    /* папка прижата к верху — центр кадра стола тоже */
+    --desk-y: calc(10px + var(--ph) / 2 - var(--desk-h) / 2);
     align-items: start;
     padding-top: 10px;
   }

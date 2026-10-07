@@ -22,6 +22,9 @@ const emit = defineEmits<{ done: [] }>()
 
 const host = ref<HTMLDivElement | null>(null)
 const fading = ref(false)
+const waking = ref(false)
+// стоп-кадр (?introAt) и съёмка стола — без век и расфокуса
+const awake = ref(false)
 let stop = () => {}
 let finished = false
 
@@ -169,9 +172,14 @@ function drawCard(text: string, color: string, hot: boolean) {
 }
 
 onMounted(async () => {
-  const frozenAt = Number(new URLSearchParams(location.search).get('introAt')) || 0
+  const q = new URLSearchParams(location.search)
+  const frozenAt = Number(q.get('introAt')) || 0
+  // ?deskShot=1 — снять фон стола для разметки (см. DESK_SHOT ниже); только для сборки
+  const deskShot = q.has('deskShot')
+  awake.value = !!frozenAt || deskShot
   const skip =
     !frozenAt &&
+    !deskShot &&
     (matchMedia('(prefers-reduced-motion: reduce)').matches ||
       location.hash.length > 1 ||
       (() => {
@@ -650,9 +658,48 @@ onMounted(async () => {
   const upTo = V(0, 0, -1)
   const look = new THREE.Vector3()
 
-  const T_LAMP = 0.7
-  const T_MOVE = 1.1
-  const T_END = 7.2
+  // Сначала глаза открываются (≈3.4 с, см. .lids), потом загорается лампа и
+  // камера начинает движение
+  /**
+   * Фон стола для разметки — кадр этой же сцены сверху, без папки и красной
+   * бумажки (они в разметке настоящие). Снят с той же высоты, что последний
+   * кадр вступления, но шире объективом: тогда последний кадр — просто центр
+   * фона, и на стыке ничего не прыгает, даже высокие лампа и кружка.
+   * Снимается при сборке: npm run desk-shot → public/desk.jpg.
+   */
+  function shootDesk() {
+    folder.visible = false
+    note.visible = false
+    spot.intensity = 6
+    glow.intensity = 0.5
+    bulbMat.emissiveIntensity = 7
+    dustMat.opacity = 0
+    const W = 2400
+    const H = 1500
+    renderer.setPixelRatio(1)
+    renderer.setSize(W, H)
+    composer.setSize(W, H)
+    composer.removePass(grade)
+    // высота последнего кадра для типичного экрана 1440×900 с папкой 770 px
+    const h = (FH * 900) / (770 * 2 * Math.tan(fovRad / 2))
+    const halfH = 1.0
+    camera.fov = (2 * Math.atan(halfH / h) * 180) / Math.PI
+    camera.aspect = W / H
+    camera.updateProjectionMatrix()
+    camera.position.set(0, DESK_Y + h, 0.0001)
+    camera.up.set(0, 0, -1)
+    camera.lookAt(0, DESK_Y, 0)
+    composer.render()
+    ;(window as unknown as Record<string, unknown>).__desk = {
+      jpg: renderer.domElement.toDataURL('image/jpeg', 0.86),
+      // во сколько раз кадр выше папки — для background-size в разметке
+      k: (2 * halfH) / FH,
+    }
+  }
+
+  const T_LAMP = 3.1
+  const T_MOVE = 3.4
+  const T_END = 9.5
   // Лампа со старым контактом: включилась, погасла, снова
   const flicker = [0, 1, 0.08, 0.85, 0.15, 0.95, 0.4, 1, 1]
   const lampAt = (t: number) => {
@@ -662,8 +709,11 @@ onMounted(async () => {
     return flicker[Math.floor(k * (flicker.length - 1))]!
   }
 
+  if (deskShot) return shootDesk()
+
   const clock = new THREE.Clock()
   let raf = 0
+  let first = true
   function frame() {
     const t = frozenAt || clock.getElapsedTime()
     const l = lampAt(t)
@@ -702,6 +752,12 @@ onMounted(async () => {
     grade.uniforms.uTime!.value = t
 
     composer.render()
+    // Веки начинают открываться, когда под ними уже есть комната: импорт
+    // three.js и шрифтов занимает время, и глаза не должны открыться в пустоту
+    if (first) {
+      first = false
+      if (!frozenAt) waking.value = true
+    }
     if (t >= T_END && !finished && !frozenAt) finish()
     raf = requestAnimationFrame(frame)
   }
@@ -732,8 +788,11 @@ onBeforeUnmount(() => stop())
 </script>
 
 <template>
-  <div class="intro" :class="{ fading }" @pointerdown="finish">
+  <div class="intro" :class="{ fading, waking, awake }" @pointerdown="finish">
     <div ref="host" class="host" aria-hidden="true" />
+    <!-- Веки: комната появляется, будто медленно открываешь глаза -->
+    <div class="lid top" aria-hidden="true" />
+    <div class="lid bottom" aria-hidden="true" />
     <button class="skip" type="button" @click.stop="finish">пропустить</button>
   </div>
 </template>
@@ -753,6 +812,73 @@ onBeforeUnmount(() => stop())
 }
 .host :deep(canvas) {
   display: block;
+}
+
+/* ── Пробуждение ─────────────────────────────────────────────────────────
+   Два века с размытым краем. Сначала темно, потом щёлочка, моргание,
+   приоткрылись шире, ещё моргание, открылись. Взгляд при этом фокусируется:
+   картинка под веками сначала мутная и тёмная. Моргание быстрое (≈0.15 с) —
+   медленное читается как засыпание, а не пробуждение. */
+.lid {
+  position: absolute;
+  left: -15%;
+  width: 130%;
+  height: 56%;
+  background: #000;
+  box-shadow: 0 0 60px 50px #000;
+  pointer-events: none;
+}
+.lid.top {
+  top: 0;
+  border-radius: 0 0 50% 50% / 0 0 34% 34%;
+}
+.lid.bottom {
+  bottom: 0;
+  border-radius: 50% 50% 0 0 / 34% 34% 0 0;
+}
+.waking .lid.top {
+  animation: lid-top 3.4s linear forwards;
+}
+.waking .lid.bottom {
+  animation: lid-bottom 3.4s linear forwards;
+}
+.host {
+  filter: blur(14px) brightness(0.5);
+}
+.waking .host {
+  animation: focus 3.6s ease-out forwards;
+}
+.awake .lid {
+  display: none;
+}
+.awake .host {
+  filter: none;
+  animation: none;
+}
+@keyframes lid-top {
+  0%, 22% { transform: translateY(0); }
+  42% { transform: translateY(-30%); }
+  46% { transform: translateY(0); }
+  52% { transform: translateY(-38%); }
+  66% { transform: translateY(-58%); }
+  70% { transform: translateY(0); }
+  76% { transform: translateY(-62%); }
+  100% { transform: translateY(-130%); }
+}
+@keyframes lid-bottom {
+  0%, 22% { transform: translateY(0); }
+  42% { transform: translateY(30%); }
+  46% { transform: translateY(0); }
+  52% { transform: translateY(38%); }
+  66% { transform: translateY(58%); }
+  70% { transform: translateY(0); }
+  76% { transform: translateY(62%); }
+  100% { transform: translateY(130%); }
+}
+@keyframes focus {
+  0%, 30% { filter: blur(14px) brightness(0.5); }
+  70% { filter: blur(5px) brightness(0.8); }
+  100% { filter: blur(0) brightness(1); }
 }
 .skip {
   position: absolute;
