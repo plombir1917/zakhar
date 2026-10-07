@@ -29,9 +29,9 @@
   --tab-orange: #dfa576;
   --tab-red: #d57a6e;
 
-  --hand: 'Bad Script', 'Segoe Script', cursive;
+  --hand: 'Marck Script', 'Segoe Script', cursive;
   --type: 'PT Mono', 'Courier New', monospace;
-  --text: 'Golos Text Variable', system-ui, sans-serif;
+  --text: 'Source Serif 4 Variable', Georgia, serif;
   --stampface: 'Ruslan Display', Impact, sans-serif;
 
   /* Бумажное зерно: шум вместо картинки — весит сотню байт и не мылится */
@@ -59,7 +59,7 @@ body {
   color: var(--ink);
   font-family: var(--text);
   font-size: 16px;
-  line-height: 1.55;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -84,7 +84,7 @@ button {
 .hand {
   font-family: var(--hand);
   font-weight: 400;
-  font-size-adjust: 0.5;
+  font-size-adjust: 0.36;
   letter-spacing: 0.01em;
   /* шариковая паста чуть расплывается по волокнам */
   text-shadow: 0 0 0.5px currentColor;

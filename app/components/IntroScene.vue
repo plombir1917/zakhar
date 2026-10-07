@@ -98,7 +98,7 @@ function drawCover(g: CanvasRenderingContext2D) {
   // учреждение
   line(110, 360, 680)
   g.fillStyle = pen
-  g.font = '44px "Bad Script"'
+  g.font = '44px "Marck Script"'
   g.fillText('документация к жизни', 130, 345)
   g.fillStyle = 'rgba(27,27,27,.55)'
   g.font = '20px "PT Mono"'
@@ -109,15 +109,15 @@ function drawCover(g: CanvasRenderingContext2D) {
   g.fillText('Д Е Л О  №', 110, 560)
   line(530, 572, 300)
   g.fillStyle = pen
-  g.font = '60px "Bad Script"'
+  g.font = '60px "Marck Script"'
   g.fillText('200', 620, 552)
   // заголовок
   line(110, 760, 800)
   line(110, 900, 800)
   g.fillStyle = pen
-  g.font = '48px "Bad Script"'
+  g.font = '48px "Marck Script"'
   g.fillText('Личное дело', 150, 745)
-  g.font = '170px "Bad Script"'
+  g.font = '170px "Marck Script"'
   g.fillText('!захар', 150, 885)
   // графы
   g.fillStyle = ink
@@ -128,7 +128,7 @@ function drawCover(g: CanvasRenderingContext2D) {
   g.fillText('листах', 260, 1095)
   g.fillText('Хранить', 560, 1090)
   g.fillStyle = pen
-  g.font = '40px "Bad Script"'
+  g.font = '40px "Marck Script"'
   g.fillText('давно', 250, 1032)
   g.fillText('7', 200, 1092)
   g.fillStyle = '#c8232c'
@@ -220,7 +220,7 @@ function drawCard(text: string, color: string, hot: boolean) {
       g.fillRect(0, y, 256, 2)
     }
     g.fillStyle = hot ? '#c8232c' : '#1b2a8a'
-    g.font = `${text.length > 7 ? 42 : 52}px "Bad Script"`
+    g.font = `${text.length > 7 ? 42 : 52}px "Marck Script"`
     g.textAlign = 'center'
     g.fillText(text, 128, 118)
   }
@@ -269,7 +269,7 @@ onMounted(async () => {
   // а «!захар» — Times. Поэтому грузим с кириллическим образцом и считаем
   // готовым, только когда load() вернул загруженные начертания по каждому.
   const SAMPLE = 'Личное дело !захар документация ДЕЛО ХРАНИТЬ 200'
-  const faces = ['120px "Bad Script"', '30px "PT Mono"', '42px "Ruslan Display"']
+  const faces = ['120px "Marck Script"', '30px "PT Mono"', '42px "Ruslan Display"']
   for (let i = 0; i < 60; i++) {
     const got = await Promise.all(faces.map((f) => document.fonts.load(f, SAMPLE).catch(() => [])))
     if (got.every((list) => list.length > 0)) break

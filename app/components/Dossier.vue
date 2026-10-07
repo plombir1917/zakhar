@@ -610,7 +610,7 @@ function onTabKey(e: KeyboardEvent) {
   box-shadow: 1px 2px 3px rgb(0 0 0 / 0.3);
   font-family: var(--hand);
   font-size: 1rem;
-  font-size-adjust: 0.5;
+  font-size-adjust: 0.36;
   font-weight: 400;
   text-align: left;
   cursor: pointer;
@@ -939,7 +939,8 @@ function onTabKey(e: KeyboardEvent) {
     box-shadow: -10px 0 12px -6px rgb(0 0 0 / 0.5);
   }
   .tabs {
-    padding-right: 120px;
+    /* место под красную закладку «не трогать», чтобы она не закрывала «Связь» */
+    padding-right: 150px;
   }
 }
 </style>

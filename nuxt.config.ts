@@ -7,10 +7,11 @@ export default defineNuxtConfig({
   // Без префиксов папок: <PenNote>, а не <BitsPenNote> — имена и так говорящие.
   components: [{ path: '~/components', pathPrefix: false }],
   css: [
-    // Шрифты лежат в проекте, а не тянутся с Google. Bad Script — пометки
-    // ручкой (выбор владельца, 7 октября 2026: живой прописной почерк).
-    '@fontsource/bad-script/400.css',
-    '@fontsource-variable/golos-text',
+    // Шрифты лежат в проекте, а не тянутся с Google. Выбор владельца
+    // (7 октября 2026): Marck Script — пометки ручкой, Source Serif 4 — текст.
+    '@fontsource/marck-script/400.css',
+    // opsz: у Source Serif оптический размер — мелкий текст плотнее, крупный тоньше
+    '@fontsource-variable/source-serif-4/opsz.css',
     '@fontsource/pt-mono/400.css',
     '@fontsource/ruslan-display/400.css',
     // Мир DJ Снюфа: техно-гротеск для пульта и текста флаера

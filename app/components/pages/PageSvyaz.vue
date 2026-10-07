@@ -102,7 +102,7 @@ function tear(i: number) {
   font-size: 2rem;
   font-weight: 400;
   color: var(--stamp);
-  font-size-adjust: 0.5;
+  font-size-adjust: 0.36;
 }
 .ad-body {
   margin: 0 22px 16px;
