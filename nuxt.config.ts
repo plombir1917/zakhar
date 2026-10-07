@@ -13,6 +13,8 @@ export default defineNuxtConfig({
     '@fontsource-variable/golos-text',
     '@fontsource/pt-mono/400.css',
     '@fontsource/ruslan-display/400.css',
+    // Мир DJ Снюфа: техно-гротеск для пульта и текста флаера
+    '@fontsource-variable/tektur',
     '~/assets/css/main.css',
   ],
   app: {
@@ -29,6 +31,8 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#1f1b17' },
       ],
       link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      // Без JS вступление не доиграет и так и закроет стол чёрным — прячем его
+      noscript: [{ innerHTML: '<style>.intro{display:none}</style>' }],
     },
   },
 })

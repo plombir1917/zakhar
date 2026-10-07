@@ -1,239 +1,131 @@
 <script setup lang="ts">
 /**
- * Режим DJ Снюфа — тяжёлая вставка «со всей фигнёй». Красная бумажка
- * «НЕ ТРОГАТЬ» на столе включает ночной клуб: лампа гаснет, по столу ходят
- * прожекторы, папка качается в бит, бит играет сам.
+ * Режим DJ Снюфа: переход из «личного дела» в совсем другой мир.
  *
- * Бит синтезирован в браузере (бочка, хэт, бас), а не файлом: своих сведений
- * в деле пока нет, а тащить чужой трек — не наш случай. Когда хозяин принесёт
- * свой — заменить play() на воспроизведение файла.
+ * Сценарий — одна поставленная сцена, в которую не надо вмешиваться:
+ *   1. darken (2.2 с) — экран медленно темнеет, стол расплывается и выцветает,
+ *      растёт нарастающий шум, в темноте проступает «ну я же просил…»;
+ *   2. tunnel (2.4 с) — затягивает в неоновый туннель, отсчёт 3-2-1;
+ *   3. drop — одна вспышка, удар, ударная волна — и открывается мир Снюфа;
+ *   4. leaving — выход как у старого телевизора: картинка схлопывается в
+ *      полоску, потом в точку, звук проваливается.
  *
- * Свет пульсирует, но не мигает: по всему экрану не бывает резких вспышек
- * чаще трёх в секунду — это порог, опасный для людей с фоточувствительной
- * эпилепсией. При «уменьшить движение» прожекторы стоят, папка не качается.
+ * Вспышка ровно одна и короткая: частые вспышки опасны для людей с
+ * фоточувствительной эпилепсией. При «уменьшить движение» туннеля и вспышки
+ * нет — тихое затемнение и сразу мир.
  */
 const on = defineModel<boolean>({ default: false })
 
-const BPM = 124
-const BEAT = 60 / BPM
+type Phase = 'idle' | 'darken' | 'tunnel' | 'world' | 'leaving'
+const phase = ref<Phase>('idle')
+const tunnelProg = ref(0)
+const count = ref(0)
+const flash = ref(false)
+const audio = useSnuffAudio()
 
-const canvas = ref<HTMLCanvasElement | null>(null)
-const muted = ref(false)
-let ctx: AudioContext | null = null
-let master: GainNode | null = null
-let t0 = 0
-let nextBeat = 0
-let beatNo = 0
+const DARKEN = 2.2
+const TUNNEL = 2.4
+let timers: number[] = []
 let raf = 0
-let scheduler = 0
-let calm = false
-
-function kick(at: number) {
-  const o = ctx!.createOscillator()
-  const g = ctx!.createGain()
-  o.frequency.setValueAtTime(150, at)
-  o.frequency.exponentialRampToValueAtTime(42, at + 0.32)
-  g.gain.setValueAtTime(1, at)
-  g.gain.exponentialRampToValueAtTime(0.001, at + 0.4)
-  o.connect(g).connect(master!)
-  o.start(at)
-  o.stop(at + 0.42)
-}
-
-let noise: AudioBuffer | null = null
-function hat(at: number, open = false) {
-  if (!noise) {
-    noise = ctx!.createBuffer(1, ctx!.sampleRate * 0.3, ctx!.sampleRate)
-    const d = noise.getChannelData(0)
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
-  }
-  const s = ctx!.createBufferSource()
-  s.buffer = noise
-  const f = ctx!.createBiquadFilter()
-  f.type = 'highpass'
-  f.frequency.value = 7000
-  const g = ctx!.createGain()
-  g.gain.setValueAtTime(open ? 0.22 : 0.14, at)
-  g.gain.exponentialRampToValueAtTime(0.001, at + (open ? 0.22 : 0.05))
-  s.connect(f).connect(g).connect(master!)
-  s.start(at)
-  s.stop(at + 0.3)
-}
-
-// Бас: короткие ноты пилой через фильтр, рисунок на два такта
-const BASS = [55, 0, 55, 65.4, 0, 49, 55, 0]
-function bass(at: number, n: number) {
-  const hz = BASS[n % BASS.length]
-  if (!hz) return
-  const o = ctx!.createOscillator()
-  o.type = 'sawtooth'
-  o.frequency.value = hz
-  const f = ctx!.createBiquadFilter()
-  f.type = 'lowpass'
-  f.frequency.setValueAtTime(900, at)
-  f.frequency.exponentialRampToValueAtTime(160, at + BEAT / 2)
-  const g = ctx!.createGain()
-  g.gain.setValueAtTime(0.0001, at)
-  g.gain.exponentialRampToValueAtTime(0.28, at + 0.01)
-  g.gain.exponentialRampToValueAtTime(0.0001, at + BEAT / 2)
-  o.connect(f).connect(g).connect(master!)
-  o.start(at)
-  o.stop(at + BEAT / 2 + 0.02)
-}
-
-// Планировщик смотрит на 120 мс вперёд: таймеры JS неточны, а звук
-// ставится на часы AudioContext — так бит не плывёт.
-function schedule() {
-  while (nextBeat < ctx!.currentTime + 0.12) {
-    kick(nextBeat)
-    hat(nextBeat + BEAT / 2, beatNo % 4 === 3)
-    bass(nextBeat + BEAT / 2, beatNo)
-    nextBeat += BEAT
-    beatNo++
-  }
-}
-
-function startAudio() {
-  ctx ??= new AudioContext()
-  void ctx.resume()
-  master = ctx.createGain()
-  master.gain.value = muted.value ? 0 : 0.55
-  master.connect(ctx.destination)
-  t0 = ctx.currentTime + 0.05
-  nextBeat = t0
-  beatNo = 0
-  schedule()
-  scheduler = window.setInterval(schedule, 25)
-}
-
-function stopAudio() {
-  clearInterval(scheduler)
-  master?.disconnect()
-  master = null
-}
-
-watch(muted, (m) => {
-  if (master && ctx) master.gain.setTargetAtTime(m ? 0 : 0.55, ctx.currentTime, 0.05)
-})
-
-// ── Свет ──────────────────────────────────────────────────────────────
-const COLORS = ['123, 44, 255', '255, 61, 168', '43, 212, 255', '245, 213, 71']
-const beams = Array.from({ length: 7 }, (_, i) => ({
-  x: 0.08 + i * 0.14,
-  speed: 0.35 + ((i * 37) % 10) / 22,
-  phase: i * 1.7,
-  color: COLORS[i % COLORS.length],
-}))
-
-function frame() {
-  const c = canvas.value
-  if (!c || !ctx) return
-  const w = (c.width = c.clientWidth * devicePixelRatio)
-  const h = (c.height = c.clientHeight * devicePixelRatio)
-  const g = c.getContext('2d')!
-  const t = ctx.currentTime - t0
-  const phase = (((t % BEAT) + BEAT) % BEAT) / BEAT
-  // Огибающая удара: вспыхивает на бочке и гаснет к следующей доле
-  const pulse = calm ? 0.35 : Math.exp(-phase * 5)
-  document.documentElement.style.setProperty('--kick', calm ? '0' : pulse.toFixed(3))
-
-  g.clearRect(0, 0, w, h)
-  g.globalCompositeOperation = 'lighter'
-  for (const b of beams) {
-    const ang = calm ? 0.25 * Math.sin(b.phase) : Math.sin(t * b.speed + b.phase) * 0.55
-    const x = b.x * w
-    const len = h * 1.25
-    const spread = 0.13
-    const grad = g.createLinearGradient(x, 0, x + Math.sin(ang) * len, len)
-    const a = 0.1 + pulse * 0.16
-    grad.addColorStop(0, `rgba(${b.color}, ${a + 0.12})`)
-    grad.addColorStop(1, `rgba(${b.color}, 0)`)
-    g.fillStyle = grad
-    g.beginPath()
-    g.moveTo(x, -10)
-    g.lineTo(x + Math.sin(ang - spread) * len, Math.cos(ang - spread) * len)
-    g.lineTo(x + Math.sin(ang + spread) * len, Math.cos(ang + spread) * len)
-    g.closePath()
-    g.fill()
-  }
-  raf = requestAnimationFrame(frame)
-}
-
-watch(on, (v) => {
-  document.documentElement.classList.toggle('snuff', v)
-  if (v) {
-    calm = matchMedia('(prefers-reduced-motion: reduce)').matches
-    startAudio()
-    nextTick(() => (raf = requestAnimationFrame(frame)))
-  } else {
-    cancelAnimationFrame(raf)
-    stopAudio()
-    document.documentElement.style.removeProperty('--kick')
-  }
-})
-
-onBeforeUnmount(() => {
-  on.value = false
+const later = (s: number, fn: () => void) => timers.push(window.setTimeout(fn, s * 1000))
+const clearAll = () => {
+  timers.forEach(clearTimeout)
+  timers = []
   cancelAnimationFrame(raf)
-  stopAudio()
-  void ctx?.close()
+}
+
+function enter() {
+  clearAll()
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
+  document.documentElement.classList.add('snuff-darken')
+  phase.value = 'darken'
+  if (calm) {
+    later(0.5, () => {
+      phase.value = 'world'
+      audio.startBeat()
+    })
+    return
+  }
+  const dropAt = audio.riser(DARKEN + TUNNEL)
+  later(DARKEN, () => {
+    phase.value = 'tunnel'
+    const t0 = performance.now()
+    const step = () => {
+      tunnelProg.value = Math.min(1, (performance.now() - t0) / (TUNNEL * 1000))
+      if (tunnelProg.value < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    ;[3, 2, 1].forEach((n, i) => later(i * (TUNNEL / 3), () => (count.value = n)))
+  })
+  later(DARKEN + TUNNEL, () => {
+    count.value = 0
+    audio.drop(dropAt)
+    flash.value = true
+    phase.value = 'world'
+    later(0.6, () => (flash.value = false))
+  })
+}
+
+function leave() {
+  clearAll()
+  if (phase.value === 'idle') return
+  phase.value = 'leaving'
+  audio.powerOff(0.6)
+  later(0.75, () => {
+    phase.value = 'idle'
+    document.documentElement.classList.remove('snuff-darken')
+  })
+}
+
+watch(on, (v) => (v ? enter() : leave()))
+onBeforeUnmount(() => {
+  clearAll()
+  audio.stopBeat()
+  document.documentElement.classList.remove('snuff-darken')
 })
 </script>
 
 <template>
-  <canvas v-show="on" ref="canvas" class="beams" aria-hidden="true" />
-  <p v-if="on" class="loud" aria-hidden="true">СНЮФ</p>
-
-  <div class="note-wrap">
-    <button class="snuff-note" :class="{ on }" :aria-pressed="on" @click="on = !on">
-      <span class="hand big">{{ on ? 'верни как было' : 'НЕ ТРОГАТЬ' }}</span>
+  <!-- Бумажка на краю стола — вход в мир Снюфа -->
+  <div v-if="phase === 'idle'" class="note-wrap">
+    <button class="snuff-note" @click="on = true">
+      <span class="hand big">НЕ ТРОГАТЬ</span>
       <span class="type small">DJ Снюф</span>
     </button>
-    <button v-if="on" class="mute" :aria-pressed="muted" @click="muted = !muted">
-      {{ muted ? 'включить звук' : 'выключить звук' }}
-    </button>
   </div>
+
+  <Teleport to="body">
+    <div v-if="phase !== 'idle'" class="snuff-stage" :class="'is-' + phase">
+      <!-- 1. Темнота -->
+      <div class="dim" aria-hidden="true" />
+      <p v-if="phase === 'darken'" class="warn hand">ну я же просил не трогать…</p>
+
+      <!-- 2. Туннель и отсчёт -->
+      <template v-if="phase === 'tunnel'">
+        <SnuffShader mode="tunnel" :progress="tunnelProg" />
+        <Transition name="count">
+          <p v-if="count" :key="count" class="count" aria-hidden="true">{{ count }}</p>
+        </Transition>
+      </template>
+
+      <!-- 3. Мир -->
+      <div v-if="phase === 'world' || phase === 'leaving'" class="tv">
+        <SnuffWorld @exit="on = false" />
+      </div>
+      <div v-if="flash" class="flash" aria-hidden="true">
+        <span class="wave" />
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
-.beams {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100svh;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  z-index: 0;
-}
-
-/* Надпись во весь стол позади папки — качается вместе с битом */
-.loud {
-  position: fixed;
-  inset: 0;
-  margin: 0;
-  display: grid;
-  place-items: center;
-  font-family: var(--stampface);
-  font-size: min(46vw, 64vh);
-  letter-spacing: -0.02em;
-  line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 3px rgb(160 90 255 / 0.75);
-  pointer-events: none;
-  z-index: 0;
-  transform: scale(calc(1 + var(--kick, 0) * 0.04)) rotate(-6deg);
-}
-
-/* Красная бумажка на краю стола */
+/* ── Бумажка ─────────────────────────────────────────────────────────── */
 .note-wrap {
   position: fixed;
   left: 28px;
   bottom: 26px;
   z-index: 8;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
 }
 .snuff-note {
   display: flex;
@@ -254,10 +146,6 @@ onBeforeUnmount(() => {
 .snuff-note:hover {
   transform: rotate(-4deg) translateY(-3px);
 }
-.snuff-note.on {
-  background: var(--grain), #7b2cff;
-  transform: rotate(5deg);
-}
 .big {
   font-size: 1.3rem;
   font-weight: 700;
@@ -268,15 +156,156 @@ onBeforeUnmount(() => {
   letter-spacing: 0.1em;
   opacity: 0.85;
 }
-.mute {
-  padding: 4px 2px;
-  border: 0;
-  background: none;
-  color: #e9e3ff;
-  font-size: 0.85rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
+
+/* ── Сцена перехода ──────────────────────────────────────────────────── */
+.snuff-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+.dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  animation: dim 2.2s cubic-bezier(0.55, 0, 0.6, 1) forwards;
+}
+@keyframes dim {
+  to {
+    opacity: 1;
+  }
+}
+.is-leaving .dim {
+  opacity: 1;
+  animation: undim 0.6s ease 0.15s forwards;
+}
+@keyframes undim {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.warn {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #e23a3a;
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  opacity: 0;
+  animation: warn 1.4s ease 0.8s forwards;
+}
+@keyframes warn {
+  from {
+    opacity: 0;
+    transform: rotate(-3deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-3deg) scale(1);
+  }
+}
+
+.count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-family: var(--stampface);
+  font-size: min(42vw, 60vh);
+  color: rgb(255 255 255 / 0.12);
+  -webkit-text-stroke: 4px #fff;
+  text-shadow:
+    0 0 40px rgb(123 44 255 / 0.9),
+    0 0 80px rgb(255 61 168 / 0.6);
+  pointer-events: none;
+}
+.count-enter-active {
+  animation: count-in 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) both;
+}
+.count-leave-active {
+  display: none;
+}
+@keyframes count-in {
+  from {
+    transform: scale(2.6);
+    opacity: 0;
+    filter: blur(14px);
+  }
+  25% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+}
+
+/* Вспышка дропа: одна, короткая; по ней расходится ударная волна */
+.flash {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  pointer-events: none;
+  animation: flash 0.55s ease-out forwards;
+}
+@keyframes flash {
+  to {
+    background: rgb(255 255 255 / 0);
+  }
+}
+.wave {
+  width: 20vmax;
+  height: 20vmax;
+  border-radius: 50%;
+  border: 6vmax solid rgb(123 44 255 / 0.85);
+  animation: wave 0.55s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+@keyframes wave {
+  to {
+    transform: scale(7);
+    border-width: 0.3vmax;
+    opacity: 0;
+  }
+}
+
+/* Обёртка мира — на весь экран: её transform (выключение телевизора) делает
+   её «рамкой» для fixed-потомков, и мир должен совпадать с ней */
+.tv {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+/* Выход: старый телевизор — сначала в полоску, потом в точку */
+.is-leaving .tv {
+  animation: tv-off 0.6s cubic-bezier(0.7, 0, 0.9, 0.4) forwards;
+}
+@keyframes tv-off {
+  0% {
+    transform: scale(1, 1);
+    filter: brightness(1);
+  }
+  55% {
+    transform: scale(1, 0.004);
+    filter: brightness(3);
+  }
+  100% {
+    transform: scale(0, 0.004);
+    filter: brightness(5);
+  }
 }
 
 @media (max-width: 900px) {
@@ -285,7 +314,6 @@ onBeforeUnmount(() => {
     right: 12px;
     top: 12px;
     bottom: auto;
-    align-items: flex-end;
   }
   .snuff-note {
     padding: 8px 12px 7px;
@@ -297,49 +325,22 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
-/* Клуб: лампа гаснет, стол — ночь, папка качается в бит */
-.snuff .desk {
-  background:
-    var(--grain),
-    radial-gradient(ellipse 80% 70% at 50% 40%, #1a1030, transparent 70%),
-    #08060f;
+/* Пока темнеет, стол уходит в расфокус и выцветает — как будто теряешь сознание */
+.desk {
+  transition:
+    filter 0.6s ease,
+    transform 0.6s ease;
 }
-.snuff .lamp {
-  opacity: 0;
-}
-.snuff .folder {
-  z-index: 1;
-  scale: calc(1 + var(--kick, 0) * 0.018);
-  rotate: calc(var(--kick, 0) * 1.4deg - 0.7deg);
-}
-.snuff .sheet {
-  box-shadow:
-    0 0 0 1px rgb(123 44 255 / 0.4),
-    0 0 calc(var(--kick, 0) * 40px) rgb(255 61 168 / 0.45);
-}
-.snuff .hint {
-  display: none;
+.snuff-darken .desk {
+  filter: blur(7px) saturate(0.2) brightness(0.7);
+  transform: scale(0.97);
+  transition:
+    filter 2.2s ease,
+    transform 2.2s ease;
 }
 @media (max-width: 900px) {
   .desk.open .note-wrap {
     display: none;
-  }
-  /* Качать папку на телефоне нельзя: scale/rotate у предка ломают
-     position: fixed нижней полосы закладок. Качаются листы. */
-  .snuff .folder {
-    /* именно none: даже scale: 1 делает папку «рамкой» для fixed-потомков */
-    scale: none;
-    rotate: none;
-  }
-  .snuff .sheets {
-    scale: calc(1 + var(--kick, 0) * 0.015);
-    rotate: calc(var(--kick, 0) * 1deg - 0.5deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .snuff .folder {
-    scale: 1;
-    rotate: 0deg;
   }
 }
 </style>

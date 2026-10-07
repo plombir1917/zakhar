@@ -36,6 +36,13 @@ const current = ref<SectionId>('anketa')
 const direction = ref<'forward' | 'back'>('forward')
 const visited = reactive(new Set<SectionId>())
 const snuff = ref(false)
+// Вступление (3D-сцена) накрывает стол, пока не доиграет; потом снимается
+const introOn = ref(true)
+const introDone = ref(false)
+function afterIntro() {
+  introDone.value = true
+  setTimeout(() => (introOn.value = false), 900)
+}
 
 const index = (id: SectionId) => SECTIONS.findIndex((s) => s.id === id)
 const section = computed(() => SECTIONS[index(current.value)]!)
@@ -85,10 +92,11 @@ function onTabKey(e: KeyboardEvent) {
 <template>
   <main class="desk" :class="[state, { instant, snuff, revealed }]">
     <SvgDefs />
+    <IntroScene v-if="introOn" @done="afterIntro" />
     <div class="lamp" aria-hidden="true" />
     <SnuffMode v-model="snuff" />
 
-    <p v-if="state === 'closed'" class="hint" aria-hidden="true">
+    <p v-if="state === 'closed' && introDone" class="hint" aria-hidden="true">
       <PenNote color="ink" :tilt="-4" size="1.35rem">открой — не укусит</PenNote>
       <Scribble kind="arrow" class="hint-arrow" color="var(--paper)" :delay="0.6" />
     </p>
