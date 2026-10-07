@@ -99,10 +99,10 @@ function tear(i: number) {
 }
 .ad-head {
   margin: 0 22px 4px;
-  font-size: 1.7rem;
-  font-weight: 700;
+  font-size: 2rem;
+  font-weight: 400;
   color: var(--stamp);
-  font-variation-settings: 'INFM' 100, 'BNCE' 100;
+  font-size-adjust: 0.5;
 }
 .ad-body {
   margin: 0 22px 16px;

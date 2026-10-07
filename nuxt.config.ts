@@ -7,9 +7,9 @@ export default defineNuxtConfig({
   // Без префиксов папок: <PenNote>, а не <BitsPenNote> — имена и так говорящие.
   components: [{ path: '~/components', pathPrefix: false }],
   css: [
-    // Шрифты лежат в проекте, а не тянутся с Google: у переменного
-    // рукописного нужны все оси (full.css), а их в веб-API не отдают.
-    '@fontsource-variable/shantell-sans/full.css',
+    // Шрифты лежат в проекте, а не тянутся с Google. Bad Script — пометки
+    // ручкой (выбор владельца, 7 октября 2026: живой прописной почерк).
+    '@fontsource/bad-script/400.css',
     '@fontsource-variable/golos-text',
     '@fontsource/pt-mono/400.css',
     '@fontsource/ruslan-display/400.css',

@@ -29,7 +29,7 @@
   --tab-orange: #dfa576;
   --tab-red: #d57a6e;
 
-  --hand: 'Shantell Sans Variable', 'Comic Sans MS', cursive;
+  --hand: 'Bad Script', 'Segoe Script', cursive;
   --type: 'PT Mono', 'Courier New', monospace;
   --text: 'Golos Text Variable', system-ui, sans-serif;
   --stampface: 'Ruslan Display', Impact, sans-serif;
@@ -38,6 +38,9 @@
   --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   /* Волокна картона: крупнее и вытянуты по горизонтали */
   --fiber: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .55' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .25 0 0 0 0 .17 0 0 0 0 .08 0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>");
+
+  /* Пятнистость картона: крупные неровные пятна, как у настоящего вторсырья */
+  --mottle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='.008' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .19 0 0 0 0 .08 0 0 0 -1 .46'/></filter><rect width='100%' height='100%' filter='url(%23m)'/></svg>");
 
   color-scheme: light;
 }
@@ -76,14 +79,13 @@ button {
   border-radius: 3px;
 }
 
-/* Рукописное: оси шрифта разносят буквы, чтобы надпись не выглядела набранной */
+/* Рукописное. У прописи маленькие строчные — font-size-adjust подтягивает
+   их высоту, чтобы пометка читалась наравне с печатным текстом рядом */
 .hand {
   font-family: var(--hand);
-  font-variation-settings:
-    'INFM' 100,
-    'BNCE' 60,
-    'SPAC' 0;
-  letter-spacing: 0.005em;
+  font-weight: 400;
+  font-size-adjust: 0.5;
+  letter-spacing: 0.01em;
   /* шариковая паста чуть расплывается по волокнам */
   text-shadow: 0 0 0.5px currentColor;
 }

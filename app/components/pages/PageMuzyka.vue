@@ -37,7 +37,7 @@ defineProps<{ fresh: boolean }>()
         <path d="M70 194 L 90 150 H 230 L 250 194" fill="#3a3642" />
         <circle cx="110" cy="174" r="5" fill="#2a2730" />
         <circle cx="210" cy="174" r="5" fill="#2a2730" />
-        <text x="40" y="40" font-family="Shantell Sans Variable" font-size="17" font-weight="700" fill="#2b45c6">!захар — основное</text>
+        <text x="40" y="40" font-family="Bad Script" font-size="21" fill="#2b45c6">!захар — основное</text>
         <text x="284" y="40" text-anchor="end" font-family="PT Mono" font-size="10" fill="#1b1b1b">сторона А</text>
       </svg>
       <PenNote class="deck-note" :tilt="4" color="stamp">сводил DJ Снюф</PenNote>

@@ -209,18 +209,33 @@ function onTabKey(e: KeyboardEvent) {
       <div class="cover">
         <button class="face outside" :tabindex="state === 'open' ? -1 : 0" :aria-hidden="state === 'open'" @click="open()">
           <span class="sr-only">Открыть личное дело</span>
-          <span class="printed type" aria-hidden="true">Личное дело</span>
-          <span class="line type" aria-hidden="true">
-            № <span class="blank"><PenNote :tilt="-3" size="1.9rem">200</PenNote></span>
+          <!-- Картон отдельным слоем: у него загнут уголок (clip-path), а тесёмки
+               и штамп выходят за край — их обрезать нельзя -->
+          <span class="skin" aria-hidden="true">
+            <span class="frame" />
+            <svg class="ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="48" /><circle cx="60" cy="60" r="45" class="inner" /></svg>
+          </span>
+          <span class="ear" aria-hidden="true" />
+
+          <!-- Разметка — как у типографской папки «Дело» -->
+          <span class="org" aria-hidden="true">
+            <span class="blank wide"><PenNote :tilt="-1.5" size="1.2rem">документация к жизни</PenNote></span>
+            <span class="cap type">(наименование учреждения)</span>
+          </span>
+          <span class="printed type" aria-hidden="true">
+            Дело № <span class="blank"><PenNote :tilt="-3" size="1.9rem">200</PenNote></span>
             <PenNote class="cm" :tilt="-6" size="0.95rem">в сантиметрах</PenNote>
           </span>
           <span class="name" aria-hidden="true">
-            <span class="type label">Фамилия, имя</span>
-            <span class="blank wide"><PenNote :tilt="-2" size="clamp(2.6rem, 6vw, 4.2rem)" class="who">!захар</PenNote></span>
+            <span class="blank wide"><PenNote :tilt="-1" size="1.3rem">Личное дело</PenNote></span>
+            <span class="blank wide"><PenNote :tilt="-2" size="clamp(2.8rem, 6vw, 4.4rem)" class="who">!захар</PenNote></span>
+            <span class="cap type">(заголовок дела)</span>
           </span>
-          <span class="dates type" aria-hidden="true">
+          <span class="rows type" aria-hidden="true">
             <span>Начато <span class="blank"><PenNote :tilt="-2">давно</PenNote></span></span>
             <span>Окончено <span class="blank"><PenNote :tilt="1" color="stamp">ещё нет</PenNote></span></span>
+            <span>На <span class="blank short"><PenNote :tilt="-3">7</PenNote></span> листах</span>
+            <span>Хранить <span class="blank" /></span>
           </span>
           <Stamp class="keep" :tilt="-11" size="clamp(1rem, 2.4vw, 1.5rem)" sub="Архив № 1">Хранить вечно</Stamp>
           <span class="ties" aria-hidden="true"><i /><i /></span>
@@ -350,8 +365,15 @@ function onTabKey(e: KeyboardEvent) {
 }
 
 .board {
-  background: var(--fiber), var(--grain), var(--kraft-deep);
+  background: var(--mottle), var(--fiber), var(--grain), var(--kraft-deep);
+  /* Толщина: из-под обложки по правому и нижнему краю видна стопка листов —
+     несколько бумажных кромок разного оттенка, под ними задняя доска */
   box-shadow:
+    1px 1px 0 #e6e6e1,
+    2px 2px 0 #cfd1cb,
+    3px 3px 0 #e2e3de,
+    4px 4px 0 #c8cac4,
+    5px 6px 0 #9c7a52,
     0 2px 0 rgb(0 0 0 / 0.25),
     0 30px 60px -20px rgb(0 0 0 / 0.65),
     0 12px 24px -12px rgb(0 0 0 / 0.5);
@@ -587,9 +609,9 @@ function onTabKey(e: KeyboardEvent) {
   border-left: 0;
   box-shadow: 1px 2px 3px rgb(0 0 0 / 0.3);
   font-family: var(--hand);
-  font-variation-settings: 'INFM' 60, 'BNCE' 30;
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-size-adjust: 0.5;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transform: translateX(-4px);
@@ -628,82 +650,155 @@ function onTabKey(e: KeyboardEvent) {
 .outside {
   display: block;
   width: 100%;
-  padding: 9% 9% 8% 11%;
+  padding: 8% 9% 7% 11%;
   border: 0;
   text-align: left;
   cursor: pointer;
-  background:
-    var(--fiber),
-    var(--grain),
-    linear-gradient(105deg, rgb(255 255 255 / 0.08), transparent 40%),
-    var(--kraft);
-  box-shadow:
-    inset 0 0 0 1px rgb(0 0 0 / 0.08),
-    inset 3px 0 0 rgb(0 0 0 / 0.08),
-    0 20px 40px -18px rgb(0 0 0 / 0.6);
+  background: none;
+  filter: drop-shadow(0 18px 22px rgb(0 0 0 / 0.45));
   transition: transform 0.25s ease;
 }
 .closed .outside:hover {
   transform: translateY(-3px) rotate(-0.3deg);
 }
 
+/* Картон: пятна вторсырья, волокна, зерно, потемневшие от рук края и углы,
+   светлая потёртость по кромке. Уголок справа внизу загнут — срезан
+   clip-path, а сам загиб нарисован отдельно (.ear). */
+.skin {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px 9px 9px 4px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 34px), calc(100% - 34px) 100%, 0 100%);
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgb(60 38 18 / 0.28), transparent 45%),
+    radial-gradient(90% 50% at 0% 100%, rgb(60 38 18 / 0.3), transparent 50%),
+    radial-gradient(60% 30% at 30% 12%, rgb(255 240 210 / 0.12), transparent 70%),
+    var(--mottle),
+    var(--fiber),
+    var(--grain),
+    linear-gradient(105deg, rgb(255 255 255 / 0.07), transparent 40%),
+    var(--kraft);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.1),
+    inset 0 0 0 3px rgb(255 238 205 / 0.14),
+    inset 0 0 26px rgb(50 30 12 / 0.35),
+    inset 4px 0 0 rgb(0 0 0 / 0.1);
+}
+/* Типографская рамка: двойная линия, краска чуть неровная */
+.frame {
+  position: absolute;
+  inset: 5% 5.5% 5% 7%;
+  border: 1.5px solid rgb(27 27 27 / 0.42);
+  outline: 0.75px solid rgb(27 27 27 / 0.35);
+  outline-offset: -6px;
+  filter: url(#hand-wobble);
+}
+/* Круг от кружки: кто-то ставил кофе прямо на дело */
+.ring {
+  position: absolute;
+  right: 6%;
+  top: 26%;
+  width: 34%;
+  fill: none;
+  stroke: rgb(105 58 22 / 0.32);
+  stroke-width: 3.5;
+  mix-blend-mode: multiply;
+  filter: url(#hand-wobble) blur(0.4px);
+  transform: rotate(18deg);
+}
+.ring .inner {
+  stroke-width: 1.2;
+  stroke-dasharray: 60 22 110 30;
+  stroke: rgb(105 58 22 / 0.18);
+  fill: rgb(105 58 22 / 0.035);
+}
+/* Загнутый уголок: изнанка картона светлее, под ней тень */
+.ear {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, transparent 50%, #cdae84 50%, #b99a70 100%);
+  filter: drop-shadow(-2px -2px 2px rgb(0 0 0 / 0.25));
+  border-radius: 0 0 6px 0;
+}
+
+.org,
+.name {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.org {
+  margin-bottom: 7%;
+  width: 82%;
+}
+.cap {
+  align-self: center;
+  font-size: 0.68rem;
+  color: rgb(27 27 27 / 0.55);
+}
 .printed {
-  display: block;
-  margin-bottom: 9%;
-  font-size: clamp(1.4rem, 3.4vw, 2.3rem);
-  letter-spacing: 0.22em;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 7%;
+  font-size: clamp(1.5rem, 3.4vw, 2.4rem);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgb(27 27 27 / 0.82);
 }
-.line,
-.name,
-.dates {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  color: rgb(27 27 27 / 0.82);
-}
-.line {
-  font-size: 1.3rem;
-  margin-bottom: 9%;
-  flex-wrap: wrap;
+.printed .blank {
+  letter-spacing: 0;
+  text-transform: none;
 }
 .cm {
-  margin-left: 2px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .blank {
   display: inline-flex;
   justify-content: center;
   min-width: 4.5em;
   padding: 0 6px;
-  border-bottom: 1.5px solid rgb(27 27 27 / 0.55);
+  border-bottom: 1.2px solid rgb(27 27 27 / 0.5);
 }
-.name {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  margin-bottom: 10%;
-}
-.label {
-  font-size: 0.85rem;
+.blank.short {
+  min-width: 2.2em;
 }
 .blank.wide {
   justify-content: flex-start;
   padding-left: 4%;
 }
-.who {
-  font-weight: 700;
-  line-height: 1;
+.name {
+  margin-bottom: 7%;
 }
-.dates {
-  justify-content: space-between;
-  flex-wrap: wrap;
-  font-size: 0.9rem;
+.who {
+  line-height: 1.05;
+}
+.rows {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 18px;
+  font-size: 0.86rem;
+  color: rgb(27 27 27 / 0.8);
+}
+.rows > span {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 .keep {
   position: absolute;
-  right: 9%;
-  bottom: 9%;
+  right: 10%;
+  bottom: 8%;
 }
 
 /* Завязки: тесёмки, которыми стягивают старые папки «Дело» */
@@ -733,6 +828,7 @@ function onTabKey(e: KeyboardEvent) {
 .inside {
   transform: rotateY(180deg);
   background:
+    var(--mottle),
     var(--fiber),
     var(--grain),
     linear-gradient(-100deg, rgb(0 0 0 / 0.18), transparent 12%),

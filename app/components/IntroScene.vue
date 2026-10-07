@@ -63,30 +63,85 @@ function paint(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void
 }
 
 function drawCover(g: CanvasRenderingContext2D) {
+  // Повторяет обложку из разметки (Dossier.vue): на стыке вступления с сайтом
+  // папка не должна сменить вид
+  const W = 1024
+  const H = 1393
   g.fillStyle = '#b8946a'
-  g.fillRect(0, 0, 1024, 1393)
+  g.fillRect(0, 0, W, H)
+  for (let i = 0; i < 40; i++) {
+    const x = Math.random() * W
+    const y = Math.random() * H
+    const r = 60 + Math.random() * 200
+    const gr = g.createRadialGradient(x, y, 0, x, y, r)
+    gr.addColorStop(0, `rgba(70,45,20,${Math.random() * 0.08})`)
+    gr.addColorStop(1, 'rgba(70,45,20,0)')
+    g.fillStyle = gr
+    g.fillRect(x - r, y - r, r * 2, r * 2)
+  }
   for (let i = 0; i < 2600; i++) {
     g.fillStyle = `rgba(60,40,20,${Math.random() * 0.07})`
-    g.fillRect(Math.random() * 1024, Math.random() * 1393, 20 + Math.random() * 90, 1.4)
+    g.fillRect(Math.random() * W, Math.random() * H, 20 + Math.random() * 90, 1.4)
   }
-  g.fillStyle = 'rgba(27,27,27,.82)'
-  g.font = '64px "PT Mono"'
-  g.fillText('Л И Ч Н О Е   Д Е Л О', 110, 330)
-  g.font = '44px "PT Mono"'
-  g.fillText('№', 110, 520)
-  g.fillRect(170, 530, 190, 3)
-  g.fillStyle = '#2b45c6'
-  g.font = '700 74px "Shantell Sans Variable"'
-  g.fillText('200', 200, 515)
-  g.fillStyle = 'rgba(27,27,27,.82)'
-  g.font = '30px "PT Mono"'
-  g.fillText('Фамилия, имя', 110, 660)
-  g.fillRect(110, 820, 800, 3)
-  g.fillStyle = '#2b45c6'
-  g.font = '700 150px "Shantell Sans Variable"'
-  g.fillText('!захар', 150, 790)
+  // рамка
+  g.strokeStyle = 'rgba(27,27,27,.42)'
+  g.lineWidth = 3
+  g.strokeRect(W * 0.07, H * 0.05, W * 0.875, H * 0.9)
+  g.lineWidth = 1.5
+  g.strokeRect(W * 0.07 + 12, H * 0.05 + 12, W * 0.875 - 24, H * 0.9 - 24)
+  const ink = 'rgba(27,27,27,.8)'
+  const pen = '#2b45c6'
+  const line = (x: number, y: number, w: number) => {
+    g.fillStyle = 'rgba(27,27,27,.5)'
+    g.fillRect(x, y, w, 2.4)
+  }
+  // учреждение
+  line(110, 360, 680)
+  g.fillStyle = pen
+  g.font = '44px "Bad Script"'
+  g.fillText('документация к жизни', 130, 345)
+  g.fillStyle = 'rgba(27,27,27,.55)'
+  g.font = '20px "PT Mono"'
+  g.fillText('(наименование учреждения)', 330, 392)
+  // ДЕЛО №
+  g.fillStyle = ink
+  g.font = '76px "PT Mono"'
+  g.fillText('Д Е Л О  №', 110, 560)
+  line(530, 572, 300)
+  g.fillStyle = pen
+  g.font = '60px "Bad Script"'
+  g.fillText('200', 620, 552)
+  // заголовок
+  line(110, 760, 800)
+  line(110, 900, 800)
+  g.fillStyle = pen
+  g.font = '48px "Bad Script"'
+  g.fillText('Личное дело', 150, 745)
+  g.font = '170px "Bad Script"'
+  g.fillText('!захар', 150, 885)
+  // графы
+  g.fillStyle = ink
+  g.font = '28px "PT Mono"'
+  g.fillText('Начато', 110, 1035)
+  g.fillText('Окончено', 560, 1030)
+  g.fillText('На', 110, 1095)
+  g.fillText('листах', 260, 1095)
+  g.fillText('Хранить', 560, 1090)
+  g.fillStyle = pen
+  g.font = '40px "Bad Script"'
+  g.fillText('давно', 250, 1032)
+  g.fillText('7', 200, 1092)
+  g.fillStyle = '#c8232c'
+  g.fillText('ещё нет', 760, 1027)
+  // круг от кружки
+  g.strokeStyle = 'rgba(105,58,22,.3)'
+  g.lineWidth = 7
+  g.beginPath()
+  g.arc(800, 470, 150, 0, 6.3)
+  g.stroke()
+  // штамп
   g.save()
-  g.translate(650, 1180)
+  g.translate(680, 1240)
   g.rotate(-0.19)
   g.strokeStyle = 'rgba(200,35,44,.85)'
   g.lineWidth = 6
@@ -165,7 +220,7 @@ function drawCard(text: string, color: string, hot: boolean) {
       g.fillRect(0, y, 256, 2)
     }
     g.fillStyle = hot ? '#c8232c' : '#1b2a8a'
-    g.font = `700 ${text.length > 7 ? 38 : 46}px "Shantell Sans Variable"`
+    g.font = `${text.length > 7 ? 42 : 52}px "Bad Script"`
     g.textAlign = 'center'
     g.fillText(text, 128, 118)
   }
@@ -213,8 +268,8 @@ onMounted(async () => {
   // образца текста грузит только латиницу: «200» рисовалось своим шрифтом,
   // а «!захар» — Times. Поэтому грузим с кириллическим образцом и считаем
   // готовым, только когда load() вернул загруженные начертания по каждому.
-  const SAMPLE = 'Личное дело !захар Фамилия ХРАНИТЬ 200'
-  const faces = ['700 120px "Shantell Sans Variable"', '30px "PT Mono"', '42px "Ruslan Display"']
+  const SAMPLE = 'Личное дело !захар документация ДЕЛО ХРАНИТЬ 200'
+  const faces = ['120px "Bad Script"', '30px "PT Mono"', '42px "Ruslan Display"']
   for (let i = 0; i < 60; i++) {
     const got = await Promise.all(faces.map((f) => document.fonts.load(f, SAMPLE).catch(() => [])))
     if (got.every((list) => list.length > 0)) break

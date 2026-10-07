@@ -20,7 +20,7 @@ withDefaults(
   display: inline-block;
   transform: rotate(var(--tilt));
   line-height: 1.2;
-  font-weight: 450;
+  font-weight: 400;
 }
 .pen {
   color: var(--pen);
