@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SECTIONS, type Section, type SectionId } from '~/data/dossier'
+import { COVER_PHOTO, SECTIONS, type Section, type SectionId } from '~/data/dossier'
 import PageAnketa from '~/components/pages/PageAnketa.vue'
 import PageScena from '~/components/pages/PageScena.vue'
 import PageKod from '~/components/pages/PageKod.vue'
@@ -217,9 +217,35 @@ function onTabKey(e: KeyboardEvent) {
           </span>
           <span class="ear" aria-hidden="true" />
 
+          <!-- Фото 3×4: вклеено на уголки и прихвачено скрепкой, как в анкете
+               отдела кадров -->
+          <span class="mugshot" aria-hidden="true">
+            <Clip class="mug-clip" />
+            <span class="mug-frame">
+              <img v-if="COVER_PHOTO" :src="COVER_PHOTO" alt="" />
+              <svg v-else viewBox="0 0 90 120">
+                <rect width="90" height="120" fill="#e6e4dd" />
+                <g fill="none" stroke="#2a2a2e" stroke-linecap="round" stroke-linejoin="round" filter="url(#hand-wobble)">
+                  <path d="M45 22 C 30 22, 26 36, 28 50 C 30 62, 38 70, 45 70 C 52 70, 60 62, 62 50 C 64 36, 60 22, 45 22 Z" stroke-width="1.6" />
+                  <path d="M30 34 C 34 20, 58 16, 62 36" stroke-width="2.4" />
+                  <path d="M38 46 h4 M50 46 h4 M44 54 l-2 5 h4 M40 62 C 43 64, 48 64, 51 62" stroke-width="1.3" />
+                  <path d="M38 70 L 37 80 M52 70 L 53 80" stroke-width="1.4" />
+                  <path d="M37 80 C 22 84, 12 92, 8 120 M53 80 C 68 84, 78 92, 82 120" stroke-width="1.6" />
+                  <path d="M37 80 L 45 92 L 53 80" stroke-width="1.3" />
+                </g>
+                <g stroke="#6e6e72" stroke-width="0.7" opacity="0.45">
+                  <path v-for="y in 9" :key="y" :d="`M64 ${30 + y * 5} l 6 -4`" />
+                  <path v-for="y in 6" :key="'b' + y" :d="`M60 ${88 + y * 5} l 10 -6`" />
+                </g>
+              </svg>
+              <i class="corner tl" /><i class="corner tr" /><i class="corner bl" /><i class="corner br" />
+            </span>
+            <PenNote class="mug-note" :tilt="4" size="0.95rem">фото 3×4</PenNote>
+          </span>
+
           <!-- Разметка — как у типографской папки «Дело» -->
           <span class="org" aria-hidden="true">
-            <span class="blank wide"><PenNote :tilt="-1.5" size="1.2rem">документация к жизни</PenNote></span>
+            <span class="blank wide"><PenNote :tilt="-1.5" size="1.05rem">документация к жизни</PenNote></span>
             <span class="cap type">(наименование учреждения)</span>
           </span>
           <span class="printed type" aria-hidden="true">
@@ -697,8 +723,9 @@ function onTabKey(e: KeyboardEvent) {
 /* Круг от кружки: кто-то ставил кофе прямо на дело */
 .ring {
   position: absolute;
-  right: 6%;
-  top: 26%;
+  /* кружку ставили на край папки — след уходит за кромку */
+  left: -9%;
+  top: 30%;
   width: 34%;
   fill: none;
   stroke: rgb(105 58 22 / 0.32);
@@ -713,6 +740,71 @@ function onTabKey(e: KeyboardEvent) {
   stroke: rgb(105 58 22 / 0.18);
   fill: rgb(105 58 22 / 0.035);
 }
+/* Фото 3×4 на обложке */
+.mugshot {
+  position: absolute;
+  z-index: 2;
+  top: 9%;
+  right: 10%;
+  width: 21%;
+  transform: rotate(3deg);
+}
+.mug-frame {
+  position: relative;
+  display: block;
+  padding: 5%;
+  background: #f4f2ec;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.35);
+}
+.mug-frame svg,
+.mug-frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.05);
+}
+/* фотоуголки: тёмные треугольники, в которые вставлен снимок */
+.corner {
+  position: absolute;
+  width: 18%;
+  aspect-ratio: 1;
+  background: #2a2420;
+  opacity: 0.85;
+}
+.corner.tl {
+  top: -2px;
+  left: -2px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.corner.tr {
+  top: -2px;
+  right: -2px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+.corner.bl {
+  bottom: -2px;
+  left: -2px;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+.corner.br {
+  bottom: -2px;
+  right: -2px;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.mug-clip {
+  position: absolute;
+  z-index: 2;
+  top: -26px;
+  right: 18%;
+  transform: rotate(8deg);
+}
+.mug-note {
+  display: block;
+  margin-top: 6px;
+  text-align: center;
+}
+
 /* Загнутый уголок: изнанка картона светлее, под ней тень */
 .ear {
   position: absolute;
@@ -735,7 +827,8 @@ function onTabKey(e: KeyboardEvent) {
 }
 .org {
   margin-bottom: 7%;
-  width: 82%;
+  /* справа — фото 3×4 */
+  width: 64%;
 }
 .cap {
   align-self: center;
@@ -926,6 +1019,11 @@ function onTabKey(e: KeyboardEvent) {
   .closed .tabs,
   .closed .snuff-tab {
     display: none;
+  }
+  /* красная бумажка «не трогать» лежит в правом верхнем углу — фото ниже */
+  .mugshot {
+    top: 13%;
+    width: 26%;
   }
   .snuff-tab {
     display: block;

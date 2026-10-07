@@ -8,6 +8,11 @@ export const TELEGRAM_HANDLE = '@plombir1917'
 export const CHANNEL = 'https://t.me/+1KrnRe2OeSVhZWZi'
 export const INSTAGRAM = 'https://www.instagram.com/plombir1917/'
 export const VK = 'https://vk.com/plombir1917'
+/**
+ * Фото 3×4 на лицевой стороне обложки. Пока снимка нет — карандашный
+ * портрет. Положить фото в public/photos/ и вписать путь сюда.
+ */
+export const COVER_PHOTO: string | undefined = undefined
 
 export type SectionId = 'anketa' | 'scena' | 'kod' | 'iventy' | 'muzyka' | 'lichnoe' | 'svyaz'
 

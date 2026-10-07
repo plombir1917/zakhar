@@ -96,7 +96,7 @@ function drawCover(g: CanvasRenderingContext2D) {
     g.fillRect(x, y, w, 2.4)
   }
   // учреждение
-  line(110, 360, 680)
+  line(110, 360, 560)
   g.fillStyle = pen
   g.font = '44px "Marck Script"'
   g.fillText('документация к жизни', 130, 345)
@@ -133,12 +133,42 @@ function drawCover(g: CanvasRenderingContext2D) {
   g.fillText('7', 200, 1092)
   g.fillStyle = '#c8232c'
   g.fillText('ещё нет', 760, 1027)
-  // круг от кружки
+  // круг от кружки — у левого края, как на обложке в разметке
   g.strokeStyle = 'rgba(105,58,22,.3)'
   g.lineWidth = 7
   g.beginPath()
-  g.arc(800, 470, 150, 0, 6.3)
+  g.arc(40, 520, 120, 0, 6.3)
   g.stroke()
+  // фото 3×4 в правом верхнем углу: белая карточка, силуэт, фотоуголки
+  g.save()
+  g.translate(800, 260)
+  g.rotate(0.05)
+  g.fillStyle = 'rgba(0,0,0,.25)'
+  g.fillRect(-100, -132, 210, 274)
+  // тоном темнее, чем в разметке: под лампой и свечением белое пересвечивается
+  g.fillStyle = '#bdb9ae'
+  g.fillRect(-105, -137, 210, 274)
+  g.fillStyle = '#aaa69b'
+  g.fillRect(-94, -126, 188, 252)
+  g.strokeStyle = '#2a2a2e'
+  g.lineWidth = 4
+  g.beginPath()
+  g.ellipse(0, -40, 36, 46, 0, 0, 6.3)
+  g.stroke()
+  g.beginPath()
+  g.moveTo(-90, 126)
+  g.quadraticCurveTo(-80, 30, 0, 26)
+  g.quadraticCurveTo(80, 30, 90, 126)
+  g.stroke()
+  g.fillStyle = 'rgba(42,36,32,.85)'
+  for (const [x, y, dx, dy] of [[-105, -137, 1, 1], [105, -137, -1, 1], [-105, 137, 1, -1], [105, 137, -1, -1]]) {
+    g.beginPath()
+    g.moveTo(x!, y!)
+    g.lineTo(x! + dx! * 38, y!)
+    g.lineTo(x!, y! + dy! * 38)
+    g.fill()
+  }
+  g.restore()
   // штамп
   g.save()
   g.translate(680, 1240)
